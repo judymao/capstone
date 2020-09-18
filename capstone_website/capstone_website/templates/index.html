@@ -1,8 +1,28 @@
 {% extends "base.html" %}
-{% block title %}Home{% endblock %}
+{% block title %}Capstone Home{% endblock %}
 {% block body %}
 <div class="jumbotron">
-  <h1>Flask Is Awesome</h1>
-  <p class="lead">And I'm glad to be learning so much about it!</p>
+  <h1>Welcome to Capstone</h1>
+  <p class="lead">Please sign in. If you don't have an account, register here!</p>
+  {% if message %}
+    <p class="message">{{ message | safe }}</p>
+  {% endif %}
+  <form action="submit" method="POST">
+    <div class="form-group">
+      <h3> Account Name </h3>
+      <input
+        type="text"
+        name="account"
+        placeholder="ex. John Doe"
+      />
+    </div>
+    <div class="form-group">
+      <h3> Select your risk appetite (where 1 is completely risk-adverse). </h3>
+      <input type="radio" name="rating" value="1" checked /> 1
+      <input type="radio" name="rating" value="2" /> 2
+      <input type="radio" name="rating" value="3" /> 3
+    </div>
+    <input type="submit" value="Submit" class="btn" />
+  </form>
 </div>
 {% endblock %}
