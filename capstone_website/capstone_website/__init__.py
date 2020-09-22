@@ -1,4 +1,5 @@
 from flask import Flask
+from .config import *
 
 # Initialize the app
 app = Flask(__name__)
@@ -7,4 +8,4 @@ app = Flask(__name__)
 from capstone_website import views
 
 # Load the config file
-app.config.from_object('config')
+app.config.from_object(DevelopmentConfig)
