@@ -17,4 +17,4 @@ class ProductionConfig(Config):
 class DevelopmentConfig(Config):
     DEVELOPMENT = True
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.environ.get('LOCAL_DB','postgresql://postgres:postgres@127.0.0.1/capstone_website')
+    SQLALCHEMY_DATABASE_URI = os.environ.get('LOCAL_DB', 'postgresql://postgres:postgres@127.0.0.1/capstone_website')
