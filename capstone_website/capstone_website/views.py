@@ -26,7 +26,7 @@ def login():
     if form.validate_on_submit():
         flash('Login requested for user {}, remember_me={}'.format(form.email.data, form.remember_me.data))
         return redirect('/index')
-    return render_template("login.html", form=form)
+    return render_template("login.html", title="Login", form=form)
 
 
 @app.route('/submit', methods=['POST'])

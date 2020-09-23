@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}
+Register
+{% endblock %}
+
+{% block body %}
+<div class="grid-container" id="wrapper">
+    <div class="grid-x grid-padding-x">
+        <div class="cell small-12">
+            <h1>Register</h1>
+        </div>
+        <div class="cell small-12" style="text-align: center">
+            <p>
+                Please fill out the following to the best of your ability. The more accurate your responses, the
+                better we can plan out your optimal portfolio.
+            </p>
+        </div>
+    </div>
+
+    {% if form.errors %}
+    <div class="callout alert" style="text-align: center" data-closable>
+        <h5>There are errors in your application</h5>
+        <hr>
+        <p>Please fix the errors indicated below before submitting your application.</p>
+        <button class="close-button" aria-label="Dismiss alert" type="button" data-close>
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="grid-x grid-padding-y">
+            <div class="cell small-12 medium-3">
+                <h4>Personal</h4>
+            </div>
+            <div class="cell small-12 medium-9 grid-x grid-padding-x">
+                <div class="cell small-12 medium-6">
+                    {{ render_field(form.preferred_name) }}
+                </div>
+                <div class="cell small-12 medium-6">
+                    {{ render_field(form.birthday) }}
+                </div>
+                <div class="cell small-12 medium-6">
+                    {{ render_field(form.gender) }}
+                </div>
+                <div class="cell small-12 medium-6">
+                    {{ render_field(form.ethnicity) }}
+                    <div id="ethnicity-other-wrapper">
+                        {{ render_field(form.ethnicity_other) }}
+                    </div>
+                </div>
+                <div class="cell small-12 medium-6">
+                    {{ render_field(form.tshirt_size) }}
+                </div>
+                <div class="cell small-12 medium-6">
+                    {{ render_field(form.dietary_restrictions) }}
+                </div>
+            </div>
+
+            <div class="cell small-12 medium-3">
+                <h4>Contact</h4>
+            </div>
+            <div class="cell small-12 medium-9 grid-x grid-padding-x">
+                <div class="cell small-12 medium-6 large-4">
+                    {{ render_field(form.phone_number) }}
+                </div>
+            </div>
+
+            <div class="cell small-12 medium-3">
+                <h4>Education</h4>
+            </div>
+            <div class="cell small-12 medium-9 grid-x grid-padding-x">
+                <div class="cell small-12 medium-6">
+                    {% if form.school.errors %}
+                        {{ form.school.label(class="is-invalid-label") }}
+                    {% else %}
+                        {{ form.school.label }}
+                    {% endif %}
+                    {{ render_errors(form.school) }}
+                    <select id="{{ form.school.id }}" class="select2-school-select" name="{{ form.school.name }}">
+                        {% if form.school.data %}
+                            <option value="{{ form.school.data }}">{{ form.school.data }}</option>
+                        {% else %}
+                            <option value=""></option>
+                        {% endif %}
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="cell small-12 medium-6">
+                    {{ render_field(form.study_level) }}
+                </div>
+                <div class="cell small-12 medium-6">
+                    {{ render_field(form.program) }}
+                </div>
+                <div class="cell small-12 medium-6">
+                    {{ render_field(form.grad_year) }}
+                </div>
+            </div>
+
+            <div class="cell small-12 medium-3">
+                <h4>Resume</h4>
+            </div>
+            <div class="cell small-12 medium-9 grid-x grid-padding-x">
+                <div class="cell small-12">
+                    {{ render_field(form.resume) }}
+                </div>
+                {{ render_consent_field(form.resume_share) }}
+            </div>
+
+            <div class="cell small-12 medium-3">
+                <h4>Questions</h4>
+            </div>
+            <div class="cell small-12 medium-9 grid-x grid-padding-x">
+                <div class="cell small-12">
+                    {{ render_field(form.q1_prev_hackathon) }}
+                </div>
+                <div class="cell small-12">
+                    {{ render_field(form.q2_why_participate) }}
+                </div>
+                <div class="cell small-12">
+                    {{ render_field(form.q3_hardware_exp) }}
+                </div>
+            </div>
+
+            <div class="cell small-12 medium-3">
+                <h4>One last thing</h4>
+            </div>
+            <div class="cell small-12 medium-9 grid-x grid-padding-x">
+                <div class="cell small-12">
+                    {{ render_field(form.how_you_hear) }}
+                </div>
+
+                {{ render_consent_field(form.mlh_conduct) }}
+
+                {{ render_consent_field(form.mlh_data) }}
+
+                {{ render_consent_field(form.age_confirmation) }}
+            </div>
+
+            <div class="cell small-12" style="text-align: center;">
+                {{ form.submit(class='button') }}
+            </div>
+
+        </div>
+    </form>
+</div>
+
+{% endblock %}
