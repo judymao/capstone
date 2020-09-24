@@ -1,4 +1,7 @@
 from flask import Flask
+from flask_bootstrap import Bootstrap
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager
 from .config import *
 import logging
 import os
@@ -6,9 +9,9 @@ import os
 # Initialize the app
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
+db = SQLAlchemy(app)
+Bootstrap(app)
 
-# Load the views
-from capstone_website import views
 
 # Load config
 mode = os.environ.get('CONFIG_STAGE', "PROD")
@@ -24,3 +27,14 @@ try:
 
 except ImportError:
     logging.error(f"Cannot import Config settings.")
+
+
+# Initialize login manager
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+
+# Load the views
+from capstone_website import views
+
