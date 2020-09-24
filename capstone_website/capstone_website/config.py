@@ -6,21 +6,16 @@ class Config(object):
     DEBUG = False
     TESTING = False
     CSRF_ENABLED = True
+    SECRET_KEY = 'capstone'
 
 
 class ProductionConfig(Config):
     DEBUG = False
-
-
-class StagingConfig(Config):
-    DEVELOPMENT = True
-    DEBUG = True
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
 
 
 class DevelopmentConfig(Config):
     DEVELOPMENT = True
     DEBUG = True
-
-
-class TestingConfig(Config):
-    TESTING = True
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL',
+                                             'postgresql://postgres:postgres@127.0.0.1/capstone_website')
