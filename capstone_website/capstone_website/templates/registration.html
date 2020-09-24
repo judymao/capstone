@@ -1,150 +1,53 @@
-{% extends "base.html" %}
+{% extends "bootstrap/base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
 
 {% block title %}
 Register
 {% endblock %}
 
-{% block body %}
-<div class="grid-container" id="wrapper">
-    <div class="grid-x grid-padding-x">
-        <div class="cell small-12">
-            <h1>Register</h1>
+{% block styles %}
+{{super()}}
+<link rel="stylesheet" href="{{url_for('.static', filename='css/signin.css')}}">
+{% endblock %}
+
+{% block content %}
+    <nav class="navbar navbar-inverse navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar"
+                  aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">Capstone</a>
         </div>
-        <div class="cell small-12" style="text-align: center">
-            <p>
-                Please fill out the following to the best of your ability. The more accurate your responses, the
-                better we can plan out your optimal portfolio.
-            </p>
-        </div>
-    </div>
+        <div id="navbar" class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li><a href="{{ url_for('index') }}">Home</a></li>
+            <li><a href="{{ url_for('login') }}">Login</a></li>
+            <li class="active"><a href="#">Register</a></li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </nav>
 
-    {% if form.errors %}
-    <div class="callout alert" style="text-align: center" data-closable>
-        <h5>There are errors in your application</h5>
-        <hr>
-        <p>Please fix the errors indicated below before submitting your application.</p>
-        <button class="close-button" aria-label="Dismiss alert" type="button" data-close>
-            <span aria-hidden="true">&times;</span>
-        </button>
-    </div>
-    {% endif %}
+<div class="container">
 
-    <form method="POST" enctype="multipart/form-data" novalidate>
-        {{ form.hidden_tag() }}
-        <div class="grid-x grid-padding-y">
-            <div class="cell small-12 medium-3">
-                <h4>Personal</h4>
-            </div>
-            <div class="cell small-12 medium-9 grid-x grid-padding-x">
-                <div class="cell small-12 medium-6">
-                    {{ render_field(form.preferred_name) }}
-                </div>
-                <div class="cell small-12 medium-6">
-                    {{ render_field(form.birthday) }}
-                </div>
-                <div class="cell small-12 medium-6">
-                    {{ render_field(form.gender) }}
-                </div>
-                <div class="cell small-12 medium-6">
-                    {{ render_field(form.ethnicity) }}
-                    <div id="ethnicity-other-wrapper">
-                        {{ render_field(form.ethnicity_other) }}
-                    </div>
-                </div>
-                <div class="cell small-12 medium-6">
-                    {{ render_field(form.tshirt_size) }}
-                </div>
-                <div class="cell small-12 medium-6">
-                    {{ render_field(form.dietary_restrictions) }}
-                </div>
-            </div>
+  <form class="form-signin" method="POST" action="/register">
+    <h2 class="form-signin-heading">Sign Up</h2>
+    {{ form.hidden_tag() }}
+    {{ wtf.form_field(form.user) }}
+    {{ wtf.form_field(form.email) }}
+    {{ wtf.form_field(form.password) }}
+    {{ wtf.form_field(form.confirm) }}
+    <button class="btn btn-lg btn-primary btn-block" type="submit">Sign Up</button>
+  </form>
 
-            <div class="cell small-12 medium-3">
-                <h4>Contact</h4>
-            </div>
-            <div class="cell small-12 medium-9 grid-x grid-padding-x">
-                <div class="cell small-12 medium-6 large-4">
-                    {{ render_field(form.phone_number) }}
-                </div>
-            </div>
+      <div class="hyperlink" align="center">
+        <a href="{{ url_for('login') }}">Already have an account? Click here to login!</a>
+      </div>
 
-            <div class="cell small-12 medium-3">
-                <h4>Education</h4>
-            </div>
-            <div class="cell small-12 medium-9 grid-x grid-padding-x">
-                <div class="cell small-12 medium-6">
-                    {% if form.school.errors %}
-                        {{ form.school.label(class="is-invalid-label") }}
-                    {% else %}
-                        {{ form.school.label }}
-                    {% endif %}
-                    {{ render_errors(form.school) }}
-                    <select id="{{ form.school.id }}" class="select2-school-select" name="{{ form.school.name }}">
-                        {% if form.school.data %}
-                            <option value="{{ form.school.data }}">{{ form.school.data }}</option>
-                        {% else %}
-                            <option value=""></option>
-                        {% endif %}
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div class="cell small-12 medium-6">
-                    {{ render_field(form.study_level) }}
-                </div>
-                <div class="cell small-12 medium-6">
-                    {{ render_field(form.program) }}
-                </div>
-                <div class="cell small-12 medium-6">
-                    {{ render_field(form.grad_year) }}
-                </div>
-            </div>
-
-            <div class="cell small-12 medium-3">
-                <h4>Resume</h4>
-            </div>
-            <div class="cell small-12 medium-9 grid-x grid-padding-x">
-                <div class="cell small-12">
-                    {{ render_field(form.resume) }}
-                </div>
-                {{ render_consent_field(form.resume_share) }}
-            </div>
-
-            <div class="cell small-12 medium-3">
-                <h4>Questions</h4>
-            </div>
-            <div class="cell small-12 medium-9 grid-x grid-padding-x">
-                <div class="cell small-12">
-                    {{ render_field(form.q1_prev_hackathon) }}
-                </div>
-                <div class="cell small-12">
-                    {{ render_field(form.q2_why_participate) }}
-                </div>
-                <div class="cell small-12">
-                    {{ render_field(form.q3_hardware_exp) }}
-                </div>
-            </div>
-
-            <div class="cell small-12 medium-3">
-                <h4>One last thing</h4>
-            </div>
-            <div class="cell small-12 medium-9 grid-x grid-padding-x">
-                <div class="cell small-12">
-                    {{ render_field(form.how_you_hear) }}
-                </div>
-
-                {{ render_consent_field(form.mlh_conduct) }}
-
-                {{ render_consent_field(form.mlh_data) }}
-
-                {{ render_consent_field(form.age_confirmation) }}
-            </div>
-
-            <div class="cell small-12" style="text-align: center;">
-                {{ form.submit(class='button') }}
-            </div>
-
-        </div>
-    </form>
-</div>
-
+</div> <!-- /container -->
 {% endblock %}
