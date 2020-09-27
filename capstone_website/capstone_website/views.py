@@ -30,8 +30,6 @@ def register():
     form = RegisterForm()
 
     if form.validate_on_submit() and request.method == 'POST':
-        print("Validated!")
-
         # Create a new instance of User
         user = User(user=form.user.data, email=form.email.data, password=form.password.data)
 
