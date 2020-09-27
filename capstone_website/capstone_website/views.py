@@ -31,7 +31,8 @@ def login():
 def register():
     form = RegisterForm()
 
-    if form.validate_on_submit() and request == 'POST':
+    if form.validate_on_submit() and request.method == 'POST':
+
         user = form.user.data
         email = form.email.data
         password = form.password.data
@@ -43,8 +44,15 @@ def register():
         new_user = User(user=user, email=email, password_hash=hashed_pw)
 
         # Save user data into the database
-        # TBD
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            return redirect('/')
+        except:
+            app.logger.info(f"Failed to save registration to database")
 
         return redirect(url_for('login'))
+
+    # else:
 
     return render_template("registration.html", title="Register", form=form)

@@ -6,12 +6,9 @@ from .config import *
 import logging
 import os
 
-# Initialize the app
+# Create the app
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
-db = SQLAlchemy(app)
-Bootstrap(app)
-
 
 # Load config
 mode = os.environ.get('CONFIG_STAGE', "PROD")
@@ -28,6 +25,9 @@ try:
 except ImportError:
     logging.error(f"Cannot import Config settings.")
 
+# Initialize database
+db = SQLAlchemy(app)
+Bootstrap(app)
 
 # Initialize login manager
 login_manager = LoginManager()
@@ -37,4 +37,3 @@ login_manager.login_view = 'login'
 
 # Load the views
 from capstone_website import views
-
