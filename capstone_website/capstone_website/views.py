@@ -29,20 +29,19 @@ def login():
 def register():
     form = RegisterForm()
 
-    if form.validate_on_submit() and request == 'POST':
-        user = form.user.data
-        email = form.email.data
-        password = form.password.data
-
-        # Hash the password
-        hashed_pw = generate_password_hash(password, method='sha256')
+    if form.validate_on_submit() and request.method == 'POST':
+        print("Validated!")
 
         # Create a new instance of User
-        new_user = User(user=user, email=email, password_hash=hashed_pw)
+        user = User(user=form.user.data, email=form.email.data, password=form.password.data)
 
         # Save user data into the database
-        # TBD
-
-        return redirect(url_for('login'))
+        try:
+            db.session.add(user)
+            db.session.commit()
+            # token = user.generate_confirmation_token()
+            return redirect(url_for('login'))
+        except:
+            app.logger.info(f"Failed to save registration to database")
 
     return render_template("registration.html", title="Register", form=form)

@@ -9,8 +9,6 @@ import os
 # Initialize the app
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
-db = SQLAlchemy(app)
-Bootstrap(app)
 
 
 # Load config
@@ -27,6 +25,11 @@ try:
 
 except ImportError:
     logging.error(f"Cannot import Config settings.")
+
+
+# Initailize the database
+db = SQLAlchemy(app)
+Bootstrap(app)
 
 
 # Initialize login manager

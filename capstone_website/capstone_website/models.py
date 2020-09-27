@@ -25,6 +25,9 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
 
+db.create_all() # Create tables in the db if they do not already exist
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
