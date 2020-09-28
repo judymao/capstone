@@ -8,13 +8,17 @@ from capstone_website import db
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+
     form = LoginForm()
-    if form.validate_on_submit() and request.method == 'POST':
-        user = User.query.filter_by(user=form.user.data.lower()).first()
-        if user is not None and user.verify_password(form.password.data):
-            login_user(user, form.remember_me.data)
-            return redirect(url_for('index'))
-        flash('Invalid email or password.')
+    if form.validate_on_submit():
+        user = User.query.filter_by(user=form.user.data).first()
+        if user is None or not user.verify_password(form.password.data):
+            flash('Invalid username or password.')
+            return redirect(url_for('auth.login'))
+        login_user(user, remember=form.remember_me.data)
+        return redirect(url_for('main.index'))
     return render_template('auth/login.html', title="Login", form=form)
 
 
@@ -40,4 +44,4 @@ def register():
 def logout():
     logout_user()
     flash('You have been logged out.')
-    return redirect(url_for('index'))
+    return redirect(url_for('main.index'))
