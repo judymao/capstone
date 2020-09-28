@@ -1,14 +1,9 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for
+from flask import render_template, request, flash, redirect, url_for
 from flask_login import login_user, logout_user, login_required, current_user
 from .forms import LoginForm, RegisterForm
 from . import auth
 from ..models import User
 from capstone_website import db
-
-
-@auth.route('/')
-def index():
-    return render_template("index.html")
 
 
 @auth.route('/login', methods=['GET', 'POST'])
