@@ -1,19 +1,17 @@
-from flask import render_template, request, flash, redirect, url_for
-from flask_sqlalchemy import SQLAlchemy
+from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
 from .forms import LoginForm, RegisterForm
-from .models import *
+from . import auth
+from ..models import User
+from capstone_website import db
 
-from capstone_website import app
 
-
-@app.route('/')
+@auth.route('/')
 def index():
     return render_template("index.html")
 
 
-@app.route('/login', methods=['GET', 'POST'])
+@auth.route('/login', methods=['GET', 'POST'])
 def login():
     form = LoginForm()
     if form.validate_on_submit() and request.method == 'POST':
@@ -22,10 +20,10 @@ def login():
             login_user(user, form.remember_me.data)
             return redirect(url_for('index'))
         flash('Invalid email or password.')
-    return render_template("login.html", title="Login", form=form)
+    return render_template('auth/login.html', title="Login", form=form)
 
 
-@app.route('/register', methods=['GET', 'POST'])
+@auth.route('/register', methods=['GET', 'POST'])
 def register():
     form = RegisterForm()
 
@@ -34,12 +32,17 @@ def register():
         user = User(user=form.user.data, email=form.email.data, password=form.password.data)
 
         # Save user data into the database
-        try:
-            db.session.add(user)
-            db.session.commit()
-            # token = user.generate_confirmation_token()
-            return redirect(url_for('login'))
-        except:
-            app.logger.info(f"Failed to save registration to database")
+        db.session.add(user)
+        db.session.commit()
+        # token = user.generate_confirmation_token()
+        return redirect(url_for('auth.login'))
 
-    return render_template("registration.html", title="Register", form=form)
+    return render_template('auth/registration.html', title="Register", form=form)
+
+
+@auth.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('You have been logged out.')
+    return redirect(url_for('index'))
