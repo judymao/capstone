@@ -2,7 +2,7 @@ from flask import Flask
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
-from .config import *
+from config import *
 import logging
 import os
 
@@ -27,7 +27,7 @@ except ImportError:
     logging.error(f"Cannot import Config settings.")
 
 
-# Initailize the database
+# Initialize the database and bootstrap
 db = SQLAlchemy(app)
 Bootstrap(app)
 
@@ -38,6 +38,9 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 
-# Load the views
-from capstone_website import views
+from .main import main as main_blueprint
+app.register_blueprint(main_blueprint)
+
+from .auth import auth as auth_blueprint
+app.register_blueprint(auth_blueprint, url_prefix='/auth')
 
