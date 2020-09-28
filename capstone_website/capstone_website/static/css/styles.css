@@ -1,0 +1,12 @@
+.profile-thumbnail {
+    position: absolute;
+}
+.profile-header {
+    min-height: 260px;
+    margin-left: 280px;
+}
+
+.starter-template {
+  padding: 40px 15px;
+  text-align: center;
+}
