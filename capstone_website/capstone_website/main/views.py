@@ -9,8 +9,7 @@ def index():
     return render_template("index.html")
 
 
-@main.route('/profile/<username>')
+@main.route('/dashboard')
 @login_required
-def user(username):
-    user = User.query.filter_by(user=username).first_or_404()
-    return render_template('user.html', user=user)
+def dashboard():
+    return render_template('dashboard.html')

@@ -13,14 +13,14 @@ Login
 {% block content %}
 <div class="container">
 
-  <form class="form-signin" method="POST" action="/auth/login">
+  <form class="form-signin" method='POST'>
     <h2 class="form-signin-heading">Sign In</h2>
       {{ form.hidden_tag() }}
       {{ wtf.form_field(form.user) }}
       {{ wtf.form_field(form.password) }}
       {{ wtf.form_field(form.remember_me) }}
 
-    <button class="btn btn-lg btn-primary btn-block" type="submit">Sign In</button>
+    <button class="btn btn-lg btn-primary btn-block" type="submit">Log In</button>
   </form>
 
   <div class="hyperlink" align="center">
