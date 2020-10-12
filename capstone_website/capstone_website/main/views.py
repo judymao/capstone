@@ -13,3 +13,9 @@ def index():
 @login_required
 def dashboard():
     return render_template('dashboard.html')
+
+
+@main.route('/account')
+@login_required
+def account():
+    return render_template('account.html')
