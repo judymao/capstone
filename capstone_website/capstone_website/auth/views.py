@@ -18,7 +18,7 @@ def login():
             return redirect(url_for('auth.login'))
         login_user(user, remember=form.remember_me.data)
         if next_page is None or not next_page.startswith('/'):
-            next_page = url_for('main.index')
+            next_page = url_for('main.dashboard')
         return redirect(next_page)
     return render_template('auth/login.html', title="Login", form=form)
 

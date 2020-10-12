@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% import "bootstrap/wtf.html" as wtf %}
+{% from 'bootstrap/form.html' import render_form, render_field %}
 
 {% block title %}
 Capstone
 {% endblock %}
 
-{% block page_content %}
+{% block content %}
 <div class="container">
   <div class="starter-template">
     <h1>Bootstrap starter template</h1>
