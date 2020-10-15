@@ -1,8 +1,9 @@
 from capstone_website import db, login_manager
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin
 
 
-class User(db.Model):
+class User(UserMixin, db.Model):
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -25,6 +26,9 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
 db.create_all() # Create tables in db if they do not already exist 
+
+db.create_all() # Create tables in the db if they do not already exist
+
 
 @login_manager.user_loader
 def load_user(user_id):
