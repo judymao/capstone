@@ -39,6 +39,9 @@
 
         </ul>
         <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('main.contact_us') }}">Contact Us</a>
+            </li>
             {% if current_user.is_authenticated %}
             <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown"
@@ -66,7 +69,7 @@
 {% endblock %}
 
 {% block flash %}
-<div class="container" style="padding-top: 20px;">
+<div class="container">
     {% for message in get_flashed_messages() %}
     <div class="alert alert-warning">
         <button type="button" class="close" data-dismiss="alert">&times;</button>
