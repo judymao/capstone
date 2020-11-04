@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from 'bootstrap/form.html' import render_form, render_field %}
+
+{% block title %}
+Contact Us
+{% endblock %}
+
+{% block styles %}
+{{super()}}
+<link rel="stylesheet" href="{{url_for('static', filename='css/auth.css')}}">
+{% endblock %}
+
+{% block content %}
+<div class="login-page">
+    <div class="form">
+        <form class="contact-form" method="POST">
+            <h2 class="form-heading"><b>Reset</b></h2>
+            <p class="text-center w-responsive mx-auto mb-8">If you forgot your username or password, please enter
+                your email below.
+            </p>
+            {{ form.hidden_tag() }}
+            {{ render_field(form.email) }}
+            <button class="btn btn-lg btn-primary btn-block" type="submit">Reset</button>
+        </form>
+    </div>
+
+</div>
+
+{% endblock %}
