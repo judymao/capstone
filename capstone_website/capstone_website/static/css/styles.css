@@ -1,12 +1,22 @@
 .profile-thumbnail {
     position: absolute;
 }
+
 .profile-header {
     min-height: 260px;
     margin-left: 280px;
 }
 
 .starter-template {
-  padding: 40px 15px;
-  text-align: center;
+    padding: 40px 15px;
+    text-align: center;
+}
+
+.cover {
+    background: url('../images/bg-image.jpg') no-repeat center center fixed;
+    -webkit-background-size: cover;
+    -moz-background-size: cover;
+    background-size: cover;
+    -o-background-size: cover;
+    height: 100%;
 }
