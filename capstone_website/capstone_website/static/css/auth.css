@@ -10,6 +10,7 @@
   z-index: 1;
   background: #FFFFFF;
   max-width: 500px;
+  min-width: 400px;
   margin: 0 auto 100px;
   padding: 45px;
   text-align: left;
@@ -48,6 +49,7 @@
 .form button:hover,.form button:active,.form button:focus {
   background: royalblue;
 }
+
 .form .message {
   margin: 15px 0 0;
   color: #b3b3b3;
