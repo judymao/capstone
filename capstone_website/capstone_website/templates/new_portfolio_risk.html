@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from 'bootstrap/form.html' import render_form, render_field %}
+
+{% block title %}
+Contact Us
+{% endblock %}
+
+{% block styles %}
+{{super()}}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- Page content -->
+<div class="login-page">
+    <div class="form">
+        <form class="contact-form" method="POST">
+            <h2 class="form-heading"><b>Add New Portfolio</b></h2>
+            <p class="text-center w-responsive mx-auto mb-8"><b>Please fill out the following to the best of your
+                ability. We will use this information to determine your risk tolerance.</b>
+            </p>
+            {{ form.hidden_tag() }}
+            {{ render_field(form.protectPortfolio) }}
+            {{ render_field(form.investmentPhilosophy) }}
+            {{ render_field(form.expenditure) }}
+            <p class="text-center">Please make sure that you are satisfied with your answers before proceeding to
+                the next step.</p>
+            <button class="btn btn-lg btn-primary btn-block" type="submit">Next</button>
+        </form>
+
+    </div>
+
+</div>
+
+{% endblock %}

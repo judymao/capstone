@@ -2,7 +2,7 @@
 {% from 'bootstrap/form.html' import render_form, render_field %}
 
 {% block title %}
-Register
+Contact Us
 {% endblock %}
 
 {% block styles %}
@@ -13,19 +13,21 @@ Register
 {% block content %}
 <div class="login-page">
     <div class="form">
-        <form class="register-form" method="POST" action="/auth/register">
-            <h2 class="form-heading"><b>Register</b></h2>
+        <form class="contact-form" method="POST">
+            <h2 class="form-heading"><b>Reset</b></h2>
+            <p class="text-center w-responsive mx-auto mb-8">Please enter your email, reset token (an 8-digit code sent
+                to your email), and new password information below. Your username was included in the email sent to you.
+            </p>
             {{ form.hidden_tag() }}
-            {{ render_field(form.user) }}
             {{ render_field(form.email) }}
+            {{ render_field(form.token) }}
             {{ render_field(form.password) }}
             {{ render_field(form.confirm) }}
-            <button class="btn btn-lg btn-primary btn-block" type="submit">Create New User</button>
+            <button class="btn btn-lg btn-primary btn-block" type="submit">Reset Password</button>
         </form>
 
-        <div class="message-hyper" align="center">
-            Already have an account? <a href="{{ url_for('auth.login') }}">Click here to login!</a>
-        </div>
     </div>
-</div> <!-- /container -->
+
+</div>
+
 {% endblock %}
