@@ -29,10 +29,6 @@ except ImportError:
 db = SQLAlchemy(app)
 Bootstrap(app)
 
-# Initialize the database and bootstrap
-db = SQLAlchemy(app)
-Bootstrap(app)
-
 
 # Initialize login manager
 login_manager = LoginManager()
