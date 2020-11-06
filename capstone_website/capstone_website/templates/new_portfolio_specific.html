@@ -20,19 +20,17 @@ Add New Portfolio
                 ability. We will use this information to determine your risk tolerance.</b>
             </p>
             {{ form.hidden_tag() }}
-            {{ render_field(form.protectPortfolio) }}
-            {{ render_field(form.investmentPhilosophy) }}
-            {{ render_field(form.expenditure) }}
+            {{ render_field(form.longOnly) }}
+            {{ render_field(form.maxLeverage) }}
+            {{ render_field(form.maxAsset) }}
+            {{ render_field(form.turnoverLimit) }}
             <p class="text-center">Please make sure that you are satisfied with your answers before proceeding to
                 the next step.</p>
 
             <div class="row">
-                <div class="col-6">
-                </div>
-                <div class="col-6">
-                    <button class="btn btn-lg btn-primary btn-block" type="submit">Next</button>
-                </div>
+                <button class="btn btn-lg btn-primary btn-block" type="submit">Submit</button>
             </div>
+
         </form>
 
     </div>

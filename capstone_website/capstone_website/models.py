@@ -6,9 +6,10 @@ import pandas_datareader as pdr
 
 tiingo_config = {}
 tiingo_config['session'] = True
-#TODO: API key should be a constant; maybe store in separate file
-tiingo_config['api_key'] = "58245c95b56205705dabecbbfd7e8a346b000bf7" # StockConstants.API
+# TODO: API key should be a constant; maybe store in separate file
+tiingo_config['api_key'] = "58245c95b56205705dabecbbfd7e8a346b000bf7"  # StockConstants.API
 client = tiingo.TiingoClient(tiingo_config)
+
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -35,6 +36,7 @@ class User(UserMixin, db.Model):
     def verify_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+
 class Stock(db.Model):
     __tablename__ = "stocks"
 
@@ -60,7 +62,7 @@ class Stock(db.Model):
                                         metric_name="adjClose",
                                         startDate=start_date,
                                         endDate=end_date,
-                                        frequency="monthly") #TODO: turn this to variable
+                                        frequency="monthly")  # TODO: turn this to variable
         except tiingo.restclient.RestClientError:
             print(f"Failed for ticker: {ticker}")
 
@@ -93,7 +95,7 @@ class Portfolio(db.Model):
     value = db.Column(db.Integer)
 
 
-db.create_all() # Create tables in the db if they do not already exist
+db.create_all()  # Create tables in the db if they do not already exist
 
 
 @login_manager.user_loader

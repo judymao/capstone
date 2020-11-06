@@ -16,7 +16,7 @@ def login():
         if user is None or not user.verify_password(form.password.data):
             flash('Invalid username or password.')
             return redirect(url_for('auth.login'))
-        login_user(user, remember=form.remember_me.data)
+        login_user(user)
         if next_page is None or not next_page.startswith('/'):
             next_page = url_for('main.dashboard')
         return redirect(next_page)
