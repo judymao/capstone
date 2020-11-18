@@ -4,7 +4,7 @@ from wtforms import StringField, PasswordField, BooleanField, SubmitField, Selec
 from wtforms.validators import DataRequired, Email, Length, Regexp
 from wtforms.widgets import TextArea
 from wtforms.widgets import html5
-from ..models import User, Portfolio
+from ..models import User, PortfolioInfo, PortfolioData
 from flask_login import current_user
 
 class ContactForm(FlaskForm):
@@ -84,7 +84,7 @@ class PortfolioForm(FlaskForm):
 
     def validate_portfolioName(self, field):
         user = User.query.filter_by(user=current_user.user).first()
-        if Portfolio.query.filter_by(user_id=user.id, name=field.data).first():
+        if PortfolioInfo.query.filter_by(user_id=user.id, name=field.data).first():
             raise ValidationError('Portfolio name already in use.')
 
 

@@ -2,7 +2,7 @@ from flask import render_template, current_app, request, redirect, url_for, flas
 from flask_login import login_required, current_user
 from . import main
 from .forms import ContactForm, RiskForm, PortfolioForm, ConstraintForm, ResetForm, Reset2Form
-from ..models import User, Portfolio
+from ..models import User, PortfolioInfo, PortfolioData
 from capstone_website import db
 
 
@@ -53,7 +53,7 @@ def reset2():
 @login_required
 def dashboard():
     user = User.query.filter_by(user=current_user.user).first()
-    portfolios = Portfolio.query.filter_by(user_id=user.id)
+    portfolios = PortfolioInfo.query.filter_by(user_id=user.id)
 
     return render_template('dashboard.html', portfolios=portfolios)
 
@@ -63,8 +63,8 @@ def dashboard():
 def portfolio(portfolio_name):
 
     user = User.query.filter_by(user=current_user.user).first()
-    portfolios = Portfolio.query.filter_by(user_id=user.id)
-    curr_portfolio = Portfolio.query.filter_by(user_id=user.id, name=portfolio_name).first()
+    portfolios = PortfolioInfo.query.filter_by(user_id=user.id)
+    curr_portfolio = PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).first()
 
     return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio)
 
@@ -109,7 +109,7 @@ def new_specific():
         user = User.query.filter_by(user=current_user.user).first()
 
         # Create a new instance of Portfolio
-        portfolio = Portfolio(user_id=user.id, protect_portfolio=session['protect_portfolio'],
+        portfolio = PortfolioInfo(user_id=user.id, protect_portfolio=session['protect_portfolio'],
                               inv_philosophy=session['inv_philosophy'], next_expenditure=session['next_expenditure'],
                               name=session['portfolio_name'], time_horizon=session['time_horizon'])
 
