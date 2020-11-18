@@ -3,6 +3,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 import tiingo
 import pandas_datareader as pdr
+from datetime import date
 
 tiingo_config = {}
 tiingo_config['session'] = True
@@ -52,7 +53,7 @@ class Stock(db.Model):
     def __repr__(self):
         return '<Stock %r>' % self.ticker
 
-    def getParams(self, ticker, start_date, end_date):
+    def get_tiingo(self, ticker, start_date, end_date):
         '''
         Check if ticker already exists in database. If not, query Tiingo
         '''
@@ -66,11 +67,10 @@ class Stock(db.Model):
         except tiingo.restclient.RestClientError:
             print(f"Failed for ticker: {ticker}")
 
-        rets = data.pct_change().dropna()  # create return timeseries
-        rets.columns = [ticker]
-
-        mu = rets.mean()
-        std = rets.std()
+        #TODO: what do I want to return from here?
+        rets = data.pct_change().dropna()  # return timeseries
+        # rets.columns = [ticker]
+        return rets
 
 
 class PortfolioInfo(db.Model):
@@ -89,6 +89,23 @@ class PortfolioInfo(db.Model):
     trade_size_constraint = db.Column(db.Float)
 
 
+    def create_portfolio(self):
+
+        # this is where the optimization and factor model can probably come in
+
+        # query Stock object to get stocks
+        # random_stock = Stock.query
+
+        # for now, randomly take stocks: ["MSFT"]
+
+        stock_data = Stock.query.filter_by(ticker="MSFT").first()
+        assets = ["MSFT"]
+        weights = [1]
+        value = stock_data.close
+
+        return PortfolioData(user_id=self.user_id, portfolio_id=self.id, date=date.today(),
+                             assets=assets, weights=weights, value=value)
+
 class PortfolioData(db.Model):
     __tablename__ = "portfolio_data"
 
@@ -101,6 +118,8 @@ class PortfolioData(db.Model):
     assets = db.Column(db.ARRAY(db.String(255)))
     weights = db.Column(db.ARRAY(db.Float))
     value = db.Column(db.Integer)
+
+
 
 db.create_all() # Create tables in the db if they do not already exist
 
