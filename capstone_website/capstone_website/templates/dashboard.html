@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}
-Capstone - {{ current_user.user }}
+RoboAdvisor - {{ current_user.user }}
 {% endblock %}
 
 {% block content %}
@@ -25,7 +25,8 @@ Capstone - {{ current_user.user }}
                         </li>
                     </ul>
 
-                    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-1 mb-1
+                    text-black">
                         <span>Add New Portfolio</span>
                         <a class="d-flex align-items-center text-muted" href="{{ url_for('main.new_risk') }}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -37,27 +38,17 @@ Capstone - {{ current_user.user }}
                             </svg>
                         </a>
                     </h6>
+
+                    {# Display Portfolio Links #}
                     <ul class="nav flex-column mb-2">
+                    {%  for portfolio in portfolios %}
                         <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                Portfolio 1
+                            <a class="nav-link" href="{{ url_for('main.portfolio', portfolio_name=portfolio['name'])
+                                    }}">
+                                {{ portfolio['name'] }}
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                Portfolio 2
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                Portfolio 3
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                Portfolio 4
-                            </a>
-                        </li>
+                    {%  endfor %}
                     </ul>
                 </div>
             </nav>

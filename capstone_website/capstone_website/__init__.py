@@ -6,10 +6,9 @@ from config import *
 import logging
 import os
 
-# Initialize the app
+# Create the app
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
-
 
 # Load config
 mode = os.environ.get('CONFIG_STAGE', "PROD")
@@ -26,8 +25,7 @@ try:
 except ImportError:
     logging.error(f"Cannot import Config settings.")
 
-
-# Initialize the database and bootstrap
+# Initialize database
 db = SQLAlchemy(app)
 Bootstrap(app)
 
@@ -41,6 +39,7 @@ login_manager.login_message_category = 'info'
 
 from .main import main as main_blueprint
 app.register_blueprint(main_blueprint)
+
 
 from .auth import auth as auth_blueprint
 app.register_blueprint(auth_blueprint, url_prefix='/auth')

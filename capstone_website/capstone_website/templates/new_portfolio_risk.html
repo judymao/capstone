@@ -2,7 +2,7 @@
 {% from 'bootstrap/form.html' import render_form, render_field %}
 
 {% block title %}
-Contact Us
+Add New Portfolio
 {% endblock %}
 
 {% block styles %}
@@ -25,7 +25,14 @@ Contact Us
             {{ render_field(form.expenditure) }}
             <p class="text-center">Please make sure that you are satisfied with your answers before proceeding to
                 the next step.</p>
-            <button class="btn btn-lg btn-primary btn-block" type="submit">Next</button>
+
+            <div class="row">
+                <div class="col-6">
+                </div>
+                <div class="col-6">
+                    <button class="btn btn-lg btn-primary btn-block" type="submit">Next</button>
+                </div>
+            </div>
         </form>
 
     </div>
