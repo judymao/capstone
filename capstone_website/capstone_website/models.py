@@ -39,7 +39,7 @@ class Stock(db.Model):
     __tablename__ = "stocks"
 
     id = db.Column(db.Integer, primary_key=True)
-    ticker = db.Column(db.String(255), unique=True)
+    ticker = db.Column(db.String(255))
     date = db.Column(db.Date)
     open = db.Column(db.Float)
     high = db.Column(db.Float)
@@ -71,8 +71,8 @@ class Stock(db.Model):
         std = rets.std()
 
 
-class Portfolio(db.Model):
-    __tablename__ = "portfolios"
+class PortfolioInfo(db.Model):
+    __tablename__ = "portfolio_info"
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -86,12 +86,19 @@ class Portfolio(db.Model):
     holding_constraint = db.Column(db.Float)
     trade_size_constraint = db.Column(db.Float)
 
+
+class PortfolioData(db.Model):
+    __tablename__ = "portfolio_data"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    portfolio_id = db.Column(db.Integer, db.ForeignKey('portfolio_info.id'))
+
     # Time-series data
     date = db.Column(db.Date)
     assets = db.Column(db.ARRAY(db.String(255)))
     weights = db.Column(db.ARRAY(db.Float))
     value = db.Column(db.Integer)
-
 
 db.create_all() # Create tables in the db if they do not already exist
 
