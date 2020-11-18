@@ -7,6 +7,7 @@ from wtforms.widgets import html5
 from ..models import User, PortfolioInfo, PortfolioData
 from flask_login import current_user
 
+
 class ContactForm(FlaskForm):
     name = StringField(label='Your Name', validators=[DataRequired(), Length(min=4, max=16),
                                                       Regexp('^[A-Za-z][A-Za-z0-9_.]*$', 0,
@@ -28,6 +29,17 @@ class Reset2Form(FlaskForm):
     password = PasswordField('New Password', [validators.DataRequired(), validators.Length(min=8, max=80),
                                               validators.EqualTo('confirm', message='Passwords must match')])
     confirm = PasswordField('Confirm Password', validators=[DataRequired(), Length(min=8, max=80)])
+
+
+class DeletePortfolio(FlaskForm):
+    del_options = [(0, "Select an Option ..."), (1, "I am sure")]
+
+    delete = SelectField(label='Are you sure you want to delete this portfolio? This cannot be undone.',
+                         choices=del_options)
+
+    def validate_delete(self, field):
+        if field.data == '0':
+            raise ValidationError('Please select an option from the dropdown menu.')
 
 
 class RiskForm(FlaskForm):
