@@ -4,6 +4,7 @@ from . import main
 from .forms import ContactForm, RiskForm, PortfolioForm, ConstraintForm, ResetForm, Reset2Form, DeletePortfolio
 from ..models import User, PortfolioInfo, PortfolioData
 from capstone_website import db
+from datetime import date
 
 
 @main.route('/')
@@ -126,12 +127,23 @@ def new_specific():
         user = User.query.filter_by(user=current_user.user).first()
 
         # Create a new instance of Portfolio
+
+        # Stores the metadata for the portfolio (static variables)
         portfolio = PortfolioInfo(user_id=user.id, protect_portfolio=session['protect_portfolio'],
                               inv_philosophy=session['inv_philosophy'], next_expenditure=session['next_expenditure'],
                               name=session['portfolio_name'], time_horizon=session['time_horizon'])
 
-        # Save portfolio data into the database
+        # Save portfolio info into the database
         db.session.add(portfolio)
+        db.session.commit()
+
+        # Generate a portfolio given the portfolio info
+        #TODO: Rather than pulling from PostgreSQL again, is there a way to get the portfolio_id before storing portfolio_info?
+        portfolio_info = PortfolioInfo.query.filter_by(user_id=user.id, name=session['portfolio_name']).first()
+        portfolio_graph, portfolio_data = portfolio_info.create_portfolio()
+
+        # Save portfolio data into the database
+        db.session.add_all(portfolio_data)
         db.session.commit()
 
         # Remove the session variables

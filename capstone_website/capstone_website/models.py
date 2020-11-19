@@ -3,6 +3,15 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 import tiingo
 import pandas_datareader as pdr
+from datetime import date
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+import chart_studio.plotly as py
+
+# TODO: This is really hacky initialization
+import chart_studio
+chart_studio.tools.set_credentials_file(username='marycapstone', api_key='lLReEJuDrPeBrZCBzpMr')
 
 tiingo_config = {}
 tiingo_config['session'] = True
@@ -52,7 +61,7 @@ class Stock(db.Model):
     def __repr__(self):
         return '<Stock %r>' % self.ticker
 
-    def getParams(self, ticker, start_date, end_date):
+    def get_tiingo(self, ticker, start_date, end_date):
         '''
         Check if ticker already exists in database. If not, query Tiingo
         '''
@@ -66,11 +75,10 @@ class Stock(db.Model):
         except tiingo.restclient.RestClientError:
             print(f"Failed for ticker: {ticker}")
 
-        rets = data.pct_change().dropna()  # create return timeseries
-        rets.columns = [ticker]
-
-        mu = rets.mean()
-        std = rets.std()
+        #TODO: what do I want to return from here?
+        rets = data.pct_change().dropna()  # return timeseries
+        # rets.columns = [ticker]
+        return rets
 
 
 class PortfolioInfo(db.Model):
@@ -89,6 +97,55 @@ class PortfolioInfo(db.Model):
     trade_size_constraint = db.Column(db.Float)
 
 
+    def create_portfolio(self):
+
+        # this is where the optimization and factor model can probably come in
+
+        # query Stock object to get stocks
+        # random_stock = Stock.query
+
+        # Create a random portfolio
+        # This code is garbage but will be replaced so whatevs I guess
+
+        start_date = date(2019, 11, 10)
+        tickers = ["MSFT", "AAPL"]
+        num_assets = len(tickers)
+
+        stock_query = Stock.query.filter(Stock.date >= start_date)
+        stock_data = pd.read_sql(stock_query.statement, db.session.bind)
+
+        if stock_data.shape[0]:
+            # Only get close data and aggregate by date
+            # Caution: date formats MIGHT beself different since it's datetime, not date
+            stock_data = stock_data[["ticker", "date", "close"]]
+            portfolio = pd.DataFrame({"assets": stock_data.groupby("date")["ticker"].unique()}).reset_index()
+            portfolio.loc[:, "close"] = stock_data.groupby("date")["close"].unique().values
+            portfolio["weights"] = [[1/num_assets for i in range(num_assets)] for x in range(portfolio.shape[0])]
+            portfolio.loc[:, "value"] = [np.dot(np.array(portfolio.close[x]), np.array(portfolio.weights[x])) for x in range(portfolio.shape[0])]
+            portfolio = portfolio.drop("close", axis=1)
+            portfolio.loc[:, "user_id"] = self.user_id
+            portfolio.loc[:, "portfolio_id"] = self.id
+
+            # Render a graph and return the URL
+            fig = go.Figure(data=go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value"))
+            fig.update_xaxes(title_text='Date')
+            fig.update_yaxes(title_text='Portfolio Value')
+            portfolio_graph_url = py.plot(fig, filename="portfolio_value", auto_open=False, )
+            # print(portfolio_graph_url)
+
+            # TODO
+            # Render a table of portfolio stats
+            # portfolio_table =
+
+            return portfolio_graph_url, [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
+                                  assets=p['assets'], weights=p['weights'], value=p['value']) for p in portfolio.to_dict(orient="rows")]
+
+
+
+    # def backtest(self):
+
+
+
 class PortfolioData(db.Model):
     __tablename__ = "portfolio_data"
 
@@ -101,6 +158,9 @@ class PortfolioData(db.Model):
     assets = db.Column(db.ARRAY(db.String(255)))
     weights = db.Column(db.ARRAY(db.Float))
     value = db.Column(db.Integer)
+
+
+
 
 db.create_all() # Create tables in the db if they do not already exist
 
