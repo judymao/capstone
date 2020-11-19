@@ -1,8 +1,8 @@
 from flask import render_template, current_app, request, redirect, url_for, flash, session
 from flask_login import login_required, current_user
 from . import main
-from .forms import ContactForm, RiskForm, PortfolioForm, ConstraintForm, ResetForm, Reset2Form
-from ..models import User, Portfolio
+from .forms import ContactForm, RiskForm, PortfolioForm, ConstraintForm, ResetForm, Reset2Form, DeletePortfolio
+from ..models import User, PortfolioInfo, PortfolioData
 from capstone_website import db
 
 
@@ -53,7 +53,7 @@ def reset2():
 @login_required
 def dashboard():
     user = User.query.filter_by(user=current_user.user).first()
-    portfolios = Portfolio.query.filter_by(user_id=user.id)
+    portfolios = PortfolioInfo.query.filter_by(user_id=user.id)
 
     return render_template('dashboard.html', portfolios=portfolios)
 
@@ -63,10 +63,27 @@ def dashboard():
 def portfolio(portfolio_name):
 
     user = User.query.filter_by(user=current_user.user).first()
-    portfolios = Portfolio.query.filter_by(user_id=user.id)
-    curr_portfolio = Portfolio.query.filter_by(user_id=user.id, name=portfolio_name).first()
+    portfolios = PortfolioInfo.query.filter_by(user_id=user.id)
+    curr_portfolio = PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).first()
 
     return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio)
+
+
+@main.route('/portfolio/<portfolio_name>/delete', methods=["GET", "POST"])
+@login_required
+def delete_portfolio(portfolio_name):
+    form = DeletePortfolio()
+    user = User.query.filter_by(user=current_user.user).first()
+    curr_portfolio = PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).first()
+
+    if form.validate_on_submit() and request.method == 'POST':
+        PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).delete()
+        db.session.commit()
+        flash('Portfolio '+ portfolio_name+ ' deleted!')
+
+        portfolios = PortfolioInfo.query.filter_by(user_id=user.id)
+        return redirect(url_for('main.dashboard', portfolios=portfolios))
+    return render_template('delete_portfolio.html', curr_portfolio=curr_portfolio, form=form)
 
 
 @main.route('/portfolio/new-risk', methods=["GET", "POST"])
@@ -109,7 +126,7 @@ def new_specific():
         user = User.query.filter_by(user=current_user.user).first()
 
         # Create a new instance of Portfolio
-        portfolio = Portfolio(user_id=user.id, protect_portfolio=session['protect_portfolio'],
+        portfolio = PortfolioInfo(user_id=user.id, protect_portfolio=session['protect_portfolio'],
                               inv_philosophy=session['inv_philosophy'], next_expenditure=session['next_expenditure'],
                               name=session['portfolio_name'], time_horizon=session['time_horizon'])
 
