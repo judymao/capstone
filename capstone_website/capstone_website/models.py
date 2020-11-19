@@ -131,7 +131,8 @@ class PortfolioInfo(db.Model):
             fig.update_xaxes(title_text='Date')
             fig.update_yaxes(title_text='Portfolio Value')
             portfolio_graph_url = py.plot(fig, filename="portfolio_value", auto_open=False, )
-            print(portfolio_graph_url)
+            # print(portfolio_graph_url)
+
             # TODO
             # Render a table of portfolio stats
             # portfolio_table =
@@ -157,6 +158,7 @@ class PortfolioData(db.Model):
     assets = db.Column(db.ARRAY(db.String(255)))
     weights = db.Column(db.ARRAY(db.Float))
     value = db.Column(db.Integer)
+
 
 
 
