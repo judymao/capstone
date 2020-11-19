@@ -123,7 +123,7 @@ def new_specific():
         # Generate a portfolio given the portfolio info
         #TODO: Rather than pulling from PostgreSQL again, is there a way to get the portfolio_id before storing portfolio_info?
         portfolio_info = PortfolioInfo.query.filter_by(user_id=user.id, name=session['portfolio_name']).first()
-        portfolio_data = portfolio_info.create_portfolio()
+        portfolio_graph, portfolio_data = portfolio_info.create_portfolio()
 
         # Save portfolio data into the database
         db.session.add_all(portfolio_data)

@@ -6,6 +6,12 @@ import pandas_datareader as pdr
 from datetime import date
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
+import chart_studio.plotly as py
+
+# TODO: This is really hacky initialization
+import chart_studio
+chart_studio.tools.set_credentials_file(username='marycapstone', api_key='lLReEJuDrPeBrZCBzpMr')
 
 tiingo_config = {}
 tiingo_config['session'] = True
@@ -120,7 +126,17 @@ class PortfolioInfo(db.Model):
             portfolio.loc[:, "user_id"] = self.user_id
             portfolio.loc[:, "portfolio_id"] = self.id
 
-            return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
+            # Render a graph and return the URL
+            fig = go.Figure(data=go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value"))
+            fig.update_xaxes(title_text='Date')
+            fig.update_yaxes(title_text='Portfolio Value')
+            portfolio_graph_url = py.plot(fig, filename="portfolio_value", auto_open=False, )
+            print(portfolio_graph_url)
+            # TODO
+            # Render a table of portfolio stats
+            # portfolio_table =
+
+            return portfolio_graph_url, [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
                                   assets=p['assets'], weights=p['weights'], value=p['value']) for p in portfolio.to_dict(orient="rows")]
 
 
