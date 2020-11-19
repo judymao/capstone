@@ -4,6 +4,8 @@ from flask_login import UserMixin
 import tiingo
 import pandas_datareader as pdr
 from datetime import date
+import pandas as pd
+import numpy as np
 
 tiingo_config = {}
 tiingo_config['session'] = True
@@ -96,15 +98,36 @@ class PortfolioInfo(db.Model):
         # query Stock object to get stocks
         # random_stock = Stock.query
 
-        # for now, randomly take stocks: ["MSFT"]
+        # Create a random portfolio
+        # This code is garbage but will be replaced so whatevs I guess
 
-        stock_data = Stock.query.filter_by(ticker="MSFT").first()
-        assets = ["MSFT"]
-        weights = [1]
-        value = stock_data.close
+        start_date = date(2019, 11, 10)
+        tickers = ["MSFT", "AAPL"]
+        num_assets = len(tickers)
 
-        return PortfolioData(user_id=self.user_id, portfolio_id=self.id, date=date.today(),
-                             assets=assets, weights=weights, value=value)
+        stock_query = Stock.query.filter(Stock.date >= start_date)
+        stock_data = pd.read_sql(stock_query.statement, db.session.bind)
+
+        if stock_data.shape[0]:
+            # Only get close data and aggregate by date
+            # Caution: date formats MIGHT beself different since it's datetime, not date
+            stock_data = stock_data[["ticker", "date", "close"]]
+            portfolio = pd.DataFrame({"assets": stock_data.groupby("date")["ticker"].unique()}).reset_index()
+            portfolio.loc[:, "close"] = stock_data.groupby("date")["close"].unique().values
+            portfolio["weights"] = [[1/num_assets for i in range(num_assets)] for x in range(portfolio.shape[0])]
+            portfolio.loc[:, "value"] = [np.dot(np.array(portfolio.close[x]), np.array(portfolio.weights[x])) for x in range(portfolio.shape[0])]
+            portfolio = portfolio.drop("close", axis=1)
+            portfolio.loc[:, "user_id"] = self.user_id
+            portfolio.loc[:, "portfolio_id"] = self.id
+
+            return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
+                                  assets=p['assets'], weights=p['weights'], value=p['value']) for p in portfolio.to_dict(orient="rows")]
+
+
+
+    # def backtest(self):
+
+
 
 class PortfolioData(db.Model):
     __tablename__ = "portfolio_data"
