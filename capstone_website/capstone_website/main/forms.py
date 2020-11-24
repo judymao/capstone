@@ -1,21 +1,17 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField, SelectField, validators, ValidationError, \
-    IntegerField, FormField
+from wtforms import StringField, PasswordField, SelectField, validators, ValidationError, \
+    IntegerField, RadioField
 from wtforms.validators import DataRequired, Email, Length, Regexp
 from wtforms.widgets import TextArea
-from wtforms.widgets import html5
-from ..models import User, PortfolioInfo, PortfolioData
+from ..models import User, PortfolioInfo
 from flask_login import current_user
 
 
 class ContactForm(FlaskForm):
-    name = StringField(label='Your Name', validators=[DataRequired(), Length(min=4, max=16),
-                                                      Regexp('^[A-Za-z][A-Za-z0-9_.]*$', 0,
-                                                             'Names must have only letters, numbers, dots or '
-                                                             'underscores')])
+    name = StringField(label='Your Name', validators=[DataRequired()])
     email = StringField(label='Email', validators=[DataRequired(), Email(message='Invalid email'), Length(max=50)])
     subject = StringField(label='Subject', validators=[validators.DataRequired(), validators.Length(min=8, max=160)])
-    message = StringField(label='Your Message', validators=[DataRequired(), Length(min=8)], widget=TextArea())
+    message = StringField(label='Your Message', validators=[DataRequired()], widget=TextArea())
 
 
 class ResetForm(FlaskForm):
@@ -43,40 +39,31 @@ class DeletePortfolio(FlaskForm):
 
 
 class RiskForm(FlaskForm):
-    # 1 is risk adverse, 5 is high risk tolerance
-    agreement_options = [(0, "Select an Option ..."), (1, 'Strongly Agree'), (2, 'Agree'), (3, 'Unsure'), (4,
-                                                                                                           'Disagree'),
-                         (5,
-                          'Strongly '
-                          'Disagree')]
-    protectPortfolio = SelectField("Protecting my portfolio is more important to me than high returns.",
-                                   choices=agreement_options)
+    win_options = [(0, "A guaranteed gain of $50"), (1, '50% chance of gaining $100, 50% chance of gaining $0'),
+                         (2, '1% chance of gaining $5000, 99% chance of gaining $0')]
+    win = RadioField("Which of the following would you rather have?",
+                                   choices=win_options, validators=[DataRequired()])
 
-    philosophy_options = [(0, "Select an Option ..."), (1, 'I feel comfortable with stable investments'), (2,
-                                                                                                           'I am willing to withstand some '
-                                                                                                           'fluctuations in my investment'),
-                          (4, 'I am seeking substantial investment returns'),
-                          (5, 'I am seeking potentially high investment returns')]
-    investmentPhilosophy = SelectField("Which of the following statements best describes your investment philosophy?",
-                                       choices=philosophy_options)
+    lose_options = [(0, "A guaranteed loss of $50"), (1, '50% chance of losing $100, 50% chance of losing $0'),
+                         (2, '1% chance of losing $5000, 99% chance of losing $0')]
+    lose = RadioField("Which of the following would you rather have?",
+                                       choices=lose_options, validators=[DataRequired()])
 
-    expenditure_options = [(0, "Select an Option ..."), ('house', 'Buying a house'), ('tuition', 'Paying college '
-                                                                                                 'tuition'),
-                           ('venture', 'Capitalizing a new '
-                                       'business venture'), ('retirement', 'Providing for my retirement')]
-    expenditure = SelectField("What do you expect to be your next major expenditure?", choices=expenditure_options)
+    chance_options = [(0, "Don't play"), (1, 'Play but gamble for low stakes'), (2, 'Sometimes go all-in')]
+    chanceGames = RadioField("In games of chance, you:", choices=chance_options, validators=[DataRequired()])
 
-    def validate_protectPortfolio(self, field):
-        if field.data == '0':
-            raise ValidationError('Please select an option from the dropdown menu.')
+    unknown_options = [(0, "Worries you a lot"), (1, '5Bothers you a bit, but you try to hope for the best'),
+                         (2, 'Excites you')]
+    unknownOutcomes = RadioField("The anticipation of events with an unknown outcome:",
+                                   choices=unknown_options, validators=[DataRequired()])
 
-    def validate_investmentPhilosophy(self, field):
-        if field.data == '0':
-            raise ValidationError('Please select an option from the dropdown menu.')
+    job_options = [(0, "A guaranteed loss of $50"), (1, '50% chance of losing $100, 50% chance of losing $0'),
+                         (2, '1% chance of losing $5000, 99% chance of losing $0')]
+    job = RadioField("Which of the following would you rather have?",
+                                       choices=job_options, validators=[DataRequired()])
 
-    def validate_expenditure(self, field):
-        if field.data == '0':
-            raise ValidationError('Please select an option from the dropdown menu.')
+    monitor_options = [(0, "Investments doing poorly"), (1, 'All investments equally'), (2, 'Investments doing well')]
+    monitorPortfolio = RadioField("When monitoring your portfolio, you focus on:", choices=chance_options, validators=[DataRequired()])
 
 
 class PortfolioForm(FlaskForm):
@@ -100,16 +87,23 @@ class PortfolioForm(FlaskForm):
             raise ValidationError('Portfolio name already in use.')
 
 
-class ConstraintForm(FlaskForm):
-    long_options = [(-1, "Unsure"), (1, 'Yes'), (0, 'No')]
+class UpdateForm(FlaskForm):
+    firstName = StringField('First Name', validators=[Length(min=2, max=80)])
+    lastName = StringField('Last Name', validators=[Length(min=2, max=80)])
+    email = StringField('Email', validators=[Email(message='Invalid email'), Length(max=50)])
+    password = PasswordField('Password')
+    confirm = PasswordField('Confirm Password')
 
-    longOnly = SelectField('Would you be willing to take on a short position, i.e. sell stocks first and then buy '
-                           'back later?', choices=long_options)
+    def validate_email(self, field):
+        if current_user.email != field.data.lower():
+            if User.query.filter_by(email=field.data.lower()).first():
+                raise ValidationError('Email already registered.')
 
-    maxLeverage = IntegerField('How much leverage are you willing to take on, i.e. how much are you willing to borrow? '
-                               'Please enter a whole number. If you have no maximum leverage constraint or are not '
-                               'sure, enter 0.')
+    def validate_password(self, field):
+        if field.data:
+            validators.Length(min=8, max=80)(self, field)
+            validators.EqualTo('confirm', message='Passwords must match')(self, field)
 
-    maxAsset = IntegerField(label="Limit certain assets? How much? TBD QUESTION. If you are unsure, enter 0.")
-
-    turnoverLimit = IntegerField(label="What is your turnover limit? If you are unsure, enter 0.")
+    def validate_confirm(self, field):
+        if field.data:
+            validators.Length(min=8, max=80)(self, field)

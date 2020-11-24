@@ -2,6 +2,7 @@ from flask import Flask
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_mail import Mail
 from config import *
 import logging
 import os
@@ -12,6 +13,7 @@ app.logger.setLevel(logging.INFO)
 
 # Load config
 mode = os.environ.get('CONFIG_STAGE', "PROD")
+
 try:
     if mode == 'PROD':
         app.config.from_object(ProductionConfig)
@@ -25,9 +27,23 @@ try:
 except ImportError:
     logging.error(f"Cannot import Config settings.")
 
-# Initialize database
+# Initialize
 db = SQLAlchemy(app)
-Bootstrap(app)
+bootstrap = Bootstrap(app)
+
+# Set up email
+mail_settings = {
+    "MAIL_SERVER": 'smtp.gmail.com',
+    "MAIL_PORT": 465,
+    "MAIL_USE_TLS": False,
+    "MAIL_USE_SSL": True,
+    "MAIL_USERNAME": os.environ['EMAIL_USER'],
+    "MAIL_PASSWORD": os.environ['EMAIL_PASSWORD']
+}
+
+app.config.update(mail_settings)
+mail = Mail(app)
+mail.init_app(app)
 
 
 # Initialize login manager

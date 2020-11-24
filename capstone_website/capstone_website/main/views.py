@@ -1,11 +1,10 @@
-from flask import render_template, current_app, request, redirect, url_for, flash, session
+from flask import render_template, request, redirect, url_for, flash, session
 from flask_login import login_required, current_user
+from flask_mail import Message
 from . import main
-from .forms import ContactForm, RiskForm, PortfolioForm, ConstraintForm, ResetForm, Reset2Form, DeletePortfolio
+from .forms import ContactForm, RiskForm, PortfolioForm, ResetForm, Reset2Form, DeletePortfolio, UpdateForm
 from ..models import User, PortfolioInfo, PortfolioData
-from capstone_website import db
-from datetime import date
-
+from capstone_website import db, mail, app
 
 @main.route('/')
 def index():
@@ -16,6 +15,13 @@ def index():
 def contact_us():
     form = ContactForm()
     if form.validate_on_submit() and request.method == 'POST':
+
+        msg = Message(subject=form.subject.data, recipients=[app.config.get("MAIL_USERNAME")],
+                      sender=app.config.get("MAIL_USERNAME"),
+                      reply_to=form.email.data, body=form.message.data)
+
+        # Send the mail
+        mail.send(msg)
 
         flash('Successfully sent us an email!')
         return redirect(url_for('main.index'))
@@ -94,9 +100,12 @@ def new_risk():
     if form.validate_on_submit() and request.method == 'POST':
         # Store form results in session variables
 
-        session['protect_portfolio'] = form.protectPortfolio.data
-        session['inv_philosophy'] = form.investmentPhilosophy.data
-        session['next_expenditure'] = form.expenditure.data
+        session['win'] = form.win.data
+        session['lose'] = form.lose.data
+        session['game'] = form.chanceGames.data
+        session['job'] = form.job.data
+        session['unknown'] = form.unknownOutcomes.data
+        session['monitor'] = form.monitorPortfolio.data
 
         return redirect(url_for('main.new_general')) # Go to the next set of questions
 
@@ -108,30 +117,15 @@ def new_risk():
 def new_general():
     form = PortfolioForm()
     if form.validate_on_submit() and request.method == 'POST':
-        # Store form results in session variables
-
-        session['portfolio_name'] = form.portfolioName.data
-        session['time_horizon'] = form.timeHorizon.data
-
-        return redirect(url_for('main.new_specific'))
-
-    return render_template('new_portfolio_general.html', title="New Portfolio - General", form=form)
-
-
-@main.route('/portfolio/new-specific', methods=["GET", "POST"])
-@login_required
-def new_specific():
-    form = ConstraintForm()
-    if form.validate_on_submit() and request.method == 'POST':
         # Get the user details
         user = User.query.filter_by(user=current_user.user).first()
 
         # Create a new instance of Portfolio
-
-        # Stores the metadata for the portfolio (static variables)
-        portfolio = PortfolioInfo(user_id=user.id, protect_portfolio=session['protect_portfolio'],
-                              inv_philosophy=session['inv_philosophy'], next_expenditure=session['next_expenditure'],
-                              name=session['portfolio_name'], time_horizon=session['time_horizon'])
+        portfolio = PortfolioInfo(user_id=user.id, win_philosophy=session['win'],
+                                  lose_philosophy=session['lose'], games_philosophy=session['game'],
+                                  unknown_philosophy=session['unknown'], job_philosophy=session['job'],
+                                  monitor_philosophy=session['monitor'], name=form.portfolioName.data,
+                                  time_horizon=form.timeHorizon.data, cash=form.cash.data)
 
         # Save portfolio info into the database
         db.session.add(portfolio)
@@ -147,19 +141,49 @@ def new_specific():
         db.session.commit()
 
         # Remove the session variables
-        session.pop('protect_portfolio', None)
-        session.pop('inv_philosophy', None)
-        session.pop('next_expenditure', None)
-        session.pop('portfolio_name', None)
-        session.pop('time_horizon', None)
+        session.pop('loss', None)
+        session.pop('win', None)
+        session.pop('game', None)
+        session.pop('unknown', None)
+        session.pop('job', None)
+        session.pop('monitor', None)
 
         flash('Successfully created a new Portfolio!')
         return redirect(url_for('main.dashboard'))
 
-    return render_template('new_portfolio_specific.html', title="New Portfolio - Constraints", form=form)
+    return render_template('new_portfolio_general.html', title="New Portfolio - General", form=form)
 
 
-@main.route('/account')
+@main.route('/account', methods=["GET", "POST"])
 @login_required
 def account():
-    return render_template('account/account.html')
+    # Get the user details
+    user = User.query.filter_by(user=current_user.user).first()
+
+    form = UpdateForm()
+
+    if request.method == 'GET':
+        form.firstName.data = user.first_name
+        form.lastName.data = user.last_name
+        form.email.data = user.email
+
+    if request.method == 'POST' and form.validate_on_submit():
+        user.first_name = form.firstName.data
+        user.last_name = form.lastName.data
+
+        if form.email.data:
+            user.email = form.email.data
+
+        if form.password.data:
+            user.password = form.password.data
+
+        db.session.commit()
+
+        # Clear sensitive information
+        form.password.data = ""
+        form.confirm.data = ""
+
+        flash("Successfully updated your account information!")
+        return render_template('account/account.html', form=form)
+
+    return render_template('account/account.html', form=form)

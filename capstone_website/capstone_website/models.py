@@ -88,11 +88,15 @@ class PortfolioInfo(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
     # Portfolio metadata
-    protect_portfolio = db.Column(db.String(255))
-    inv_philosophy = db.Column(db.String(255))
-    next_expenditure = db.Column(db.String(255))
+    win_philosophy = db.Column(db.Float)
+    lose_philosophy = db.Column(db.Float)
+    games_philosophy = db.Column(db.Float)
+    unknown_philosophy = db.Column(db.Float)
+    job_philosophy = db.Column(db.Float)
+    monitor_philosophy = db.Column(db.Float)
     name = db.Column(db.String(255))
     time_horizon = db.Column(db.Float)
+    cash = db.Column(db.Float)
     holding_constraint = db.Column(db.Float)
     trade_size_constraint = db.Column(db.Float)
 
