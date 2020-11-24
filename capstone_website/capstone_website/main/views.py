@@ -1,9 +1,10 @@
-from flask import render_template, current_app, request, redirect, url_for, flash, session
+from flask import render_template, request, redirect, url_for, flash, session
 from flask_login import login_required, current_user
+from flask_mail import Message
 from . import main
 from .forms import ContactForm, RiskForm, PortfolioForm, ResetForm, Reset2Form, DeletePortfolio, UpdateForm
-from ..models import User, PortfolioInfo, PortfolioData
-from capstone_website import db
+from ..models import User, PortfolioInfo
+from capstone_website import db, mail, app
 
 
 @main.route('/')
@@ -15,6 +16,13 @@ def index():
 def contact_us():
     form = ContactForm()
     if form.validate_on_submit() and request.method == 'POST':
+
+        msg = Message(subject=form.subject.data, recipients=[app.config.get("MAIL_USERNAME")],
+                      sender=app.config.get("MAIL_USERNAME"),
+                      reply_to=form.email.data, body=form.message.data)
+
+        # Send the mail
+        mail.send(msg)
 
         flash('Successfully sent us an email!')
         return redirect(url_for('main.index'))

@@ -8,13 +8,10 @@ from flask_login import current_user
 
 
 class ContactForm(FlaskForm):
-    name = StringField(label='Your Name', validators=[DataRequired(), Length(min=4, max=16),
-                                                      Regexp('^[A-Za-z][A-Za-z0-9_.]*$', 0,
-                                                             'Names must have only letters, numbers, dots or '
-                                                             'underscores')])
+    name = StringField(label='Your Name', validators=[DataRequired()])
     email = StringField(label='Email', validators=[DataRequired(), Email(message='Invalid email'), Length(max=50)])
     subject = StringField(label='Subject', validators=[validators.DataRequired(), validators.Length(min=8, max=160)])
-    message = StringField(label='Your Message', validators=[DataRequired(), Length(min=8)], widget=TextArea())
+    message = StringField(label='Your Message', validators=[DataRequired()], widget=TextArea())
 
 
 class ResetForm(FlaskForm):
