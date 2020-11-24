@@ -150,6 +150,14 @@ class PortfolioInfo(db.Model):
     holding_constraint = db.Column(db.Float)
     trade_size_constraint = db.Column(db.Float)
 
+    def get_portfolio_instance(self, user_id, portfolio_name):
+        portfolio_instance = self.query.filter_by(user_id=user_id, name=portfolio_name).first()
+        return portfolio_instance
+
+    def get_portfolios(self, user_id):
+        portfolios = PortfolioInfo.query.filter_by(user_id=user_id)
+        return portfolios
+
     def create_portfolio(self):
         # this is where the optimization and factor model can probably come in
 
@@ -181,7 +189,7 @@ class PortfolioInfo(db.Model):
             portfolio.loc[:, "user_id"] = self.user_id
             portfolio.loc[:, "portfolio_id"] = self.id
 
-            return portfolio, [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
+            return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
                                   assets=p['assets'], weights=p['weights'], value=p['value']) for p in
                     portfolio.to_dict(orient="rows")]
 
@@ -200,6 +208,11 @@ class PortfolioData(db.Model):
     assets = db.Column(db.ARRAY(db.String(255)))
     weights = db.Column(db.ARRAY(db.Float))
     value = db.Column(db.Integer)
+
+    def get_portfolio_data_df(self, user_id, portfolio_id):
+        portfolio_data = self.query.filter_by(user_id=user_id, portfolio_id=portfolio_id)
+        portfolio_data_df = pd.read_sql(portfolio_data.statement, db.session.bind)
+        return portfolio_data_df
 
 
 db.create_all()  # Create tables in the db if they do not already exist
