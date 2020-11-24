@@ -1,7 +1,7 @@
 from flask import render_template, current_app, request, redirect, url_for, flash, session
 from flask_login import login_required, current_user
 from . import main
-from .forms import ContactForm, RiskForm, PortfolioForm, ResetForm, Reset2Form, DeletePortfolio
+from .forms import ContactForm, RiskForm, PortfolioForm, ResetForm, Reset2Form, DeletePortfolio, UpdateForm
 from ..models import User, PortfolioInfo, PortfolioData
 from capstone_website import db
 
@@ -138,7 +138,36 @@ def new_general():
     return render_template('new_portfolio_general.html', title="New Portfolio - General", form=form)
 
 
-@main.route('/account')
+@main.route('/account', methods=["GET", "POST"])
 @login_required
 def account():
-    return render_template('account/account.html')
+    # Get the user details
+    user = User.query.filter_by(user=current_user.user).first()
+
+    form = UpdateForm()
+
+    if request.method == 'GET':
+        form.firstName.data = user.first_name
+        form.lastName.data = user.last_name
+        form.email.data = user.email
+
+    if request.method == 'POST' and form.validate_on_submit():
+        user.first_name = form.firstName.data
+        user.last_name = form.lastName.data
+
+        if form.email.data:
+            user.email = form.email.data
+
+        if form.password.data:
+            user.password = form.password.data
+
+        db.session.commit()
+
+        # Clear sensitive information
+        form.password.data = ""
+        form.confirm.data = ""
+
+        flash("Successfully updated your account information!")
+        return render_template('account/account.html', form=form)
+
+    return render_template('account/account.html', form=form)

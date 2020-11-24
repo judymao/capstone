@@ -1,10 +1,9 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField, SelectField, validators, ValidationError, \
-    IntegerField, FormField, RadioField
+from wtforms import StringField, PasswordField, SelectField, validators, ValidationError, \
+    IntegerField, RadioField
 from wtforms.validators import DataRequired, Email, Length, Regexp
 from wtforms.widgets import TextArea
-from wtforms.widgets import html5
-from ..models import User, PortfolioInfo, PortfolioData
+from ..models import User, PortfolioInfo
 from flask_login import current_user
 
 
@@ -89,3 +88,25 @@ class PortfolioForm(FlaskForm):
         user = User.query.filter_by(user=current_user.user).first()
         if PortfolioInfo.query.filter_by(user_id=user.id, name=field.data).first():
             raise ValidationError('Portfolio name already in use.')
+
+
+class UpdateForm(FlaskForm):
+    firstName = StringField('First Name', validators=[Length(min=2, max=80)])
+    lastName = StringField('Last Name', validators=[Length(min=2, max=80)])
+    email = StringField('Email', validators=[Email(message='Invalid email'), Length(max=50)])
+    password = PasswordField('Password')
+    confirm = PasswordField('Confirm Password')
+
+    def validate_email(self, field):
+        if current_user.email != field.data.lower():
+            if User.query.filter_by(email=field.data.lower()).first():
+                raise ValidationError('Email already registered.')
+
+    def validate_password(self, field):
+        if field.data:
+            validators.Length(min=8, max=80)(self, field)
+            validators.EqualTo('confirm', message='Passwords must match')(self, field)
+
+    def validate_confirm(self, field):
+        if field.data:
+            validators.Length(min=8, max=80)(self, field)
