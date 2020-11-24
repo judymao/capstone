@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField, SelectField, validators, ValidationError, \
-    IntegerField, FormField
+    IntegerField, FormField, RadioField
 from wtforms.validators import DataRequired, Email, Length, Regexp
 from wtforms.widgets import TextArea
 from wtforms.widgets import html5
@@ -43,40 +43,31 @@ class DeletePortfolio(FlaskForm):
 
 
 class RiskForm(FlaskForm):
-    # 1 is risk adverse, 5 is high risk tolerance
-    agreement_options = [(0, "Select an Option ..."), (1, 'Strongly Agree'), (2, 'Agree'), (3, 'Unsure'), (4,
-                                                                                                           'Disagree'),
-                         (5,
-                          'Strongly '
-                          'Disagree')]
-    protectPortfolio = SelectField("Protecting my portfolio is more important to me than high returns.",
-                                   choices=agreement_options)
+    win_options = [(0, "A guaranteed gain of $50"), (1, '50% chance of gaining $100, 50% chance of gaining $0'),
+                         (2, '1% chance of gaining $5000, 99% chance of gaining $0')]
+    win = RadioField("Which of the following would you rather have?",
+                                   choices=win_options, validators=[DataRequired()])
 
-    philosophy_options = [(0, "Select an Option ..."), (1, 'I feel comfortable with stable investments'), (2,
-                                                                                                           'I am willing to withstand some '
-                                                                                                           'fluctuations in my investment'),
-                          (4, 'I am seeking substantial investment returns'),
-                          (5, 'I am seeking potentially high investment returns')]
-    investmentPhilosophy = SelectField("Which of the following statements best describes your investment philosophy?",
-                                       choices=philosophy_options)
+    lose_options = [(0, "A guaranteed loss of $50"), (1, '50% chance of losing $100, 50% chance of losing $0'),
+                         (2, '1% chance of losing $5000, 99% chance of losing $0')]
+    lose = RadioField("Which of the following would you rather have?",
+                                       choices=lose_options, validators=[DataRequired()])
 
-    expenditure_options = [(0, "Select an Option ..."), ('house', 'Buying a house'), ('tuition', 'Paying college '
-                                                                                                 'tuition'),
-                           ('venture', 'Capitalizing a new '
-                                       'business venture'), ('retirement', 'Providing for my retirement')]
-    expenditure = SelectField("What do you expect to be your next major expenditure?", choices=expenditure_options)
+    chance_options = [(0, "Don't play"), (1, 'Play but gamble for low stakes'), (2, 'Sometimes go all-in')]
+    chanceGames = RadioField("In games of chance, you:", choices=chance_options, validators=[DataRequired()])
 
-    def validate_protectPortfolio(self, field):
-        if field.data == '0':
-            raise ValidationError('Please select an option from the dropdown menu.')
+    unknown_options = [(0, "Worries you a lot"), (1, '5Bothers you a bit, but you try to hope for the best'),
+                         (2, 'Excites you')]
+    unknownOutcomes = RadioField("The anticipation of events with an unknown outcome:",
+                                   choices=unknown_options, validators=[DataRequired()])
 
-    def validate_investmentPhilosophy(self, field):
-        if field.data == '0':
-            raise ValidationError('Please select an option from the dropdown menu.')
+    job_options = [(0, "A guaranteed loss of $50"), (1, '50% chance of losing $100, 50% chance of losing $0'),
+                         (2, '1% chance of losing $5000, 99% chance of losing $0')]
+    job = RadioField("Which of the following would you rather have?",
+                                       choices=job_options, validators=[DataRequired()])
 
-    def validate_expenditure(self, field):
-        if field.data == '0':
-            raise ValidationError('Please select an option from the dropdown menu.')
+    monitor_options = [(0, "Investments doing poorly"), (1, 'All investments equally'), (2, 'Investments doing well')]
+    monitorPortfolio = RadioField("When monitoring your portfolio, you focus on:", choices=chance_options, validators=[DataRequired()])
 
 
 class PortfolioForm(FlaskForm):
@@ -98,18 +89,3 @@ class PortfolioForm(FlaskForm):
         user = User.query.filter_by(user=current_user.user).first()
         if PortfolioInfo.query.filter_by(user_id=user.id, name=field.data).first():
             raise ValidationError('Portfolio name already in use.')
-
-
-class ConstraintForm(FlaskForm):
-    long_options = [(-1, "Unsure"), (1, 'Yes'), (0, 'No')]
-
-    longOnly = SelectField('Would you be willing to take on a short position, i.e. sell stocks first and then buy '
-                           'back later?', choices=long_options)
-
-    maxLeverage = IntegerField('How much leverage are you willing to take on, i.e. how much are you willing to borrow? '
-                               'Please enter a whole number. If you have no maximum leverage constraint or are not '
-                               'sure, enter 0.')
-
-    maxAsset = IntegerField(label="Limit certain assets? How much? TBD QUESTION. If you are unsure, enter 0.")
-
-    turnoverLimit = IntegerField(label="What is your turnover limit? If you are unsure, enter 0.")

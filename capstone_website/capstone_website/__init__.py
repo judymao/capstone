@@ -12,6 +12,7 @@ app.logger.setLevel(logging.INFO)
 
 # Load config
 mode = os.environ.get('CONFIG_STAGE', "PROD")
+
 try:
     if mode == 'PROD':
         app.config.from_object(ProductionConfig)
