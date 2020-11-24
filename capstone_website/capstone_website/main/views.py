@@ -144,14 +144,13 @@ def new_general():
         # Generate a portfolio given the portfolio info
         #TODO: Rather than pulling from PostgreSQL again, is there a way to get the portfolio_id before storing portfolio_info?
         portfolio_info = PortfolioInfo.query.filter_by(user_id=user.id, name=form.portfolioName.data).first()
-        portfolio_data = portfolio_info.create_portfolio()
-        print(portfolio_data)
+        portfolio_df, portfolio_data = portfolio_info.create_portfolio()
 
         # Save portfolio data into the database
         db.session.add_all(portfolio_data)
         db.session.commit()
 
-        html_graph = create_portfolio_graph(portfolio_data)
+        html_graph = create_portfolio_graph(portfolio_df)
 
         # Remove the session variables
         session.pop('loss', None)
@@ -203,35 +202,11 @@ def account():
 
 
 # Helper Function Below
-def create_portfolio_graph(portfolio_data):
+def create_portfolio_graph(portfolio):
 
-    # this is where the optimization and factor model can probably come in
-
-    # query Stock object to get stocks
-    # random_stock = Stock.query
-
-    # Create a random portfolio
-    # This code is garbage but will be replaced so whatevs I guess
-
-    start_date = date(2019, 11, 10)
-    tickers = portfolio_data.assets
-    num_assets = len(tickers)
-
-    stock_query = Stock.query.filter(Stock.date >= start_date)
-    stock_data = pd.read_sql(stock_query.statement, db.session.bind)
-
-    if stock_data.shape[0]:
-        # Only get close data and aggregate by date
-        # Caution: date formats MIGHT beself different since it's datetime, not date
-        stock_data = stock_data[["ticker", "date", "close"]]
-        portf = pd.DataFrame({"assets": stock_data.groupby("date")["ticker"].unique()}).reset_index()
-        portf.loc[:, "close"] = stock_data.groupby("date")["close"].unique().values
-        portf["weights"] = [[1/num_assets for i in range(num_assets)] for x in range(portfolio.shape[0])]
-        portf.loc[:, "value"] = [np.dot(np.array(portfolio.close[x]), np.array(portfolio.weights[x])) for x in range(portfolio.shape[0])]
-        portf = portf.drop("close", axis=1)
-
+    if portfolio.shape[0]:
         # Render a graph and return the URL
-        fig = go.Figure(data=go.Scatter(x=portf["date"], y=portf["value"], mode="lines", name="Portfolio Value"))
+        fig = go.Figure(data=go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value"))
         fig.update_xaxes(title_text='Date')
         fig.update_yaxes(title_text='Portfolio Value')
         portfolio_graph_url = py.plot(fig, filename="portfolio_value", auto_open=False, )

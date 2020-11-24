@@ -181,7 +181,7 @@ class PortfolioInfo(db.Model):
             portfolio.loc[:, "user_id"] = self.user_id
             portfolio.loc[:, "portfolio_id"] = self.id
 
-            return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
+            return portfolio, [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
                                   assets=p['assets'], weights=p['weights'], value=p['value']) for p in
                     portfolio.to_dict(orient="rows")]
 
