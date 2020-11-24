@@ -3,8 +3,15 @@ from flask_login import login_required, current_user
 from flask_mail import Message
 from . import main
 from .forms import ContactForm, RiskForm, PortfolioForm, ResetForm, Reset2Form, DeletePortfolio, UpdateForm
-from ..models import User, PortfolioInfo, PortfolioData
+from ..models import User, PortfolioInfo, PortfolioData, Stock
 from capstone_website import db, mail, app
+from datetime import date
+
+import chart_studio.plotly as py
+import chart_studio.tools as tls
+import plotly.graph_objects as go
+import pandas as pd
+import numpy as np
 
 @main.route('/')
 def index():
@@ -67,13 +74,16 @@ def dashboard():
 
 @main.route('/portfolio/<portfolio_name>')
 @login_required
-def portfolio(portfolio_name):
+def portfolio(portfolio_name, portfolio_graph):
 
     user = User.query.filter_by(user=current_user.user).first()
     portfolios = PortfolioInfo.query.filter_by(user_id=user.id)
     curr_portfolio = PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).first()
 
-    return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio)
+    print(portfolio_graph)
+
+    return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio,
+                           portfolio_graph=portfolio_graph)
 
 
 @main.route('/portfolio/<portfolio_name>/delete', methods=["GET", "POST"])
@@ -133,12 +143,15 @@ def new_general():
 
         # Generate a portfolio given the portfolio info
         #TODO: Rather than pulling from PostgreSQL again, is there a way to get the portfolio_id before storing portfolio_info?
-        portfolio_info = PortfolioInfo.query.filter_by(user_id=user.id, name=session['portfolio_name']).first()
-        portfolio_graph, portfolio_data = portfolio_info.create_portfolio()
+        portfolio_info = PortfolioInfo.query.filter_by(user_id=user.id, name=form.portfolioName.data).first()
+        portfolio_data = portfolio_info.create_portfolio()
+        print(portfolio_data)
 
         # Save portfolio data into the database
         db.session.add_all(portfolio_data)
         db.session.commit()
+
+        html_graph = create_portfolio_graph(portfolio_data)
 
         # Remove the session variables
         session.pop('loss', None)
@@ -149,7 +162,7 @@ def new_general():
         session.pop('monitor', None)
 
         flash('Successfully created a new Portfolio!')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.portfolio', portfolio_name=form.portfolioName.data, portfolio_graph=html_graph))
 
     return render_template('new_portfolio_general.html', title="New Portfolio - General", form=form)
 
@@ -187,3 +200,42 @@ def account():
         return render_template('account/account.html', form=form)
 
     return render_template('account/account.html', form=form)
+
+
+# Helper Function Below
+def create_portfolio_graph(portfolio_data):
+
+    # this is where the optimization and factor model can probably come in
+
+    # query Stock object to get stocks
+    # random_stock = Stock.query
+
+    # Create a random portfolio
+    # This code is garbage but will be replaced so whatevs I guess
+
+    start_date = date(2019, 11, 10)
+    tickers = portfolio_data.assets
+    num_assets = len(tickers)
+
+    stock_query = Stock.query.filter(Stock.date >= start_date)
+    stock_data = pd.read_sql(stock_query.statement, db.session.bind)
+
+    if stock_data.shape[0]:
+        # Only get close data and aggregate by date
+        # Caution: date formats MIGHT beself different since it's datetime, not date
+        stock_data = stock_data[["ticker", "date", "close"]]
+        portf = pd.DataFrame({"assets": stock_data.groupby("date")["ticker"].unique()}).reset_index()
+        portf.loc[:, "close"] = stock_data.groupby("date")["close"].unique().values
+        portf["weights"] = [[1/num_assets for i in range(num_assets)] for x in range(portfolio.shape[0])]
+        portf.loc[:, "value"] = [np.dot(np.array(portfolio.close[x]), np.array(portfolio.weights[x])) for x in range(portfolio.shape[0])]
+        portf = portf.drop("close", axis=1)
+
+        # Render a graph and return the URL
+        fig = go.Figure(data=go.Scatter(x=portf["date"], y=portf["value"], mode="lines", name="Portfolio Value"))
+        fig.update_xaxes(title_text='Date')
+        fig.update_yaxes(title_text='Portfolio Value')
+        portfolio_graph_url = py.plot(fig, filename="portfolio_value", auto_open=False, )
+        # print(portfolio_graph_url)
+        plot_html = tls.get_embed(portfolio_graph_url)
+
+        return plot_html

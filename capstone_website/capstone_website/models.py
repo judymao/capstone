@@ -1,23 +1,12 @@
-from capstone_website import db, login_manager
+from capstone_website import db, login_manager, client
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 import tiingo
-import pandas_datareader as pdr
 from datetime import date
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import chart_studio.plotly as py
-
-# TODO: This is really hacky initialization
-import chart_studio
-chart_studio.tools.set_credentials_file(username='marycapstone', api_key='lLReEJuDrPeBrZCBzpMr')
-
-tiingo_config = {}
-tiingo_config['session'] = True
-# TODO: API key should be a constant; maybe store in separate file
-tiingo_config['api_key'] = "58245c95b56205705dabecbbfd7e8a346b000bf7"  # StockConstants.API
-client = tiingo.TiingoClient(tiingo_config)
 
 
 class User(UserMixin, db.Model):
@@ -75,7 +64,7 @@ class Stock(db.Model):
         except tiingo.restclient.RestClientError:
             print(f"Failed for ticker: {ticker}")
 
-        #TODO: what do I want to return from here?
+        # TODO: what do I want to return from here?
         rets = data.pct_change().dropna()  # return timeseries
         # rets.columns = [ticker]
         return rets
@@ -100,9 +89,7 @@ class PortfolioInfo(db.Model):
     holding_constraint = db.Column(db.Float)
     trade_size_constraint = db.Column(db.Float)
 
-
     def create_portfolio(self):
-
         # this is where the optimization and factor model can probably come in
 
         # query Stock object to get stocks
@@ -124,30 +111,18 @@ class PortfolioInfo(db.Model):
             stock_data = stock_data[["ticker", "date", "close"]]
             portfolio = pd.DataFrame({"assets": stock_data.groupby("date")["ticker"].unique()}).reset_index()
             portfolio.loc[:, "close"] = stock_data.groupby("date")["close"].unique().values
-            portfolio["weights"] = [[1/num_assets for i in range(num_assets)] for x in range(portfolio.shape[0])]
-            portfolio.loc[:, "value"] = [np.dot(np.array(portfolio.close[x]), np.array(portfolio.weights[x])) for x in range(portfolio.shape[0])]
+            portfolio["weights"] = [[1 / num_assets for i in range(num_assets)] for x in range(portfolio.shape[0])]
+            portfolio.loc[:, "value"] = [np.dot(np.array(portfolio.close[x]), np.array(portfolio.weights[x])) for x in
+                                         range(portfolio.shape[0])]
             portfolio = portfolio.drop("close", axis=1)
             portfolio.loc[:, "user_id"] = self.user_id
             portfolio.loc[:, "portfolio_id"] = self.id
 
-            # Render a graph and return the URL
-            fig = go.Figure(data=go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value"))
-            fig.update_xaxes(title_text='Date')
-            fig.update_yaxes(title_text='Portfolio Value')
-            portfolio_graph_url = py.plot(fig, filename="portfolio_value", auto_open=False, )
-            # print(portfolio_graph_url)
-
-            # TODO
-            # Render a table of portfolio stats
-            # portfolio_table =
-
-            return portfolio_graph_url, [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
-                                  assets=p['assets'], weights=p['weights'], value=p['value']) for p in portfolio.to_dict(orient="rows")]
-
-
+            return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
+                                  assets=p['assets'], weights=p['weights'], value=p['value']) for p in
+                    portfolio.to_dict(orient="rows")]
 
     # def backtest(self):
-
 
 
 class PortfolioData(db.Model):
@@ -164,9 +139,7 @@ class PortfolioData(db.Model):
     value = db.Column(db.Integer)
 
 
-
-
-db.create_all() # Create tables in the db if they do not already exist
+db.create_all()  # Create tables in the db if they do not already exist
 
 
 @login_manager.user_loader

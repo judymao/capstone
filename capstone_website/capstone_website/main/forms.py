@@ -52,7 +52,7 @@ class RiskForm(FlaskForm):
     chance_options = [(0, "Don't play"), (1, 'Play but gamble for low stakes'), (2, 'Sometimes go all-in')]
     chanceGames = RadioField("In games of chance, you:", choices=chance_options, validators=[DataRequired()])
 
-    unknown_options = [(0, "Worries you a lot"), (1, '5Bothers you a bit, but you try to hope for the best'),
+    unknown_options = [(0, "Worries you a lot"), (1, 'Bothers you a bit, but you try to hope for the best'),
                          (2, 'Excites you')]
     unknownOutcomes = RadioField("The anticipation of events with an unknown outcome:",
                                    choices=unknown_options, validators=[DataRequired()])

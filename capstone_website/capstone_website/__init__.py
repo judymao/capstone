@@ -4,8 +4,14 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
 from config import *
+import tiingo
 import logging
 import os
+
+import chart_studio
+chart_studio.tools.set_credentials_file(username=os.environ.get('PLOTLY_USER'),
+                                        api_key=os.environ.get('PLOTLY_API'))
+
 
 # Create the app
 app = Flask(__name__)
@@ -51,6 +57,12 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'auth.login'
 login_manager.login_message_category = 'info'
+
+# Load Tiingo client
+tiingo_config = {}
+tiingo_config['session'] = True
+tiingo_config['api_key'] = os.environ['TIINGO_API']  # StockConstants.API
+client = tiingo.TiingoClient(tiingo_config)
 
 
 from .main import main as main_blueprint

@@ -75,9 +75,9 @@
                     role="button">Delete Portfolio</a>
                 </div>
 
-                <canvas class="my-4 chartjs-render-monitor" id="myChart" width="862" height="363"
-                        style="display: block; width: 575px; height: 242px;"></canvas>
-
+                <div class="graph">
+                    {{ portfolio_graph | safe }}
+                </div>
 
             </main>
         </div>

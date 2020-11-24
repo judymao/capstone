@@ -6,7 +6,6 @@ from . import auth
 from ..models import User
 from capstone_website import db
 
-
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
     form = LoginForm()
@@ -26,6 +25,7 @@ def login():
 @auth.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
+        flash("You are already signed in!")
         return redirect(url_for('main.index'))
 
     form = RegisterForm()
