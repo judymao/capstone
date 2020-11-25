@@ -147,8 +147,11 @@ def new_general():
 
         # Generate a portfolio given the portfolio info
         #TODO: Rather than pulling from PostgreSQL again, is there a way to get the portfolio_id before storing portfolio_info?
-        portfolio_info = PortfolioInfo.query.filter_by(user_id=user.id, name=form.portfolioName.data).first()
+
+        # portfolio_info = PortfolioInfo.query.filter_by(user_id=user.id, name=form.portfolioName.data).first()
+        portfolio_info = portfolio.get_portfolio_instance(user_id=user.id, portfolio_name=form.portfolioName.data)
         portfolio_data = portfolio_info.create_portfolio()
+
 
         # Save portfolio data into the database
         db.session.add_all(portfolio_data)

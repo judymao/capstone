@@ -2,12 +2,20 @@ from capstone_website import db, login_manager, client
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 import tiingo
-from datetime import date
+from datetime import date, timedelta
+from dateutil.relativedelta import relativedelta
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
-import chart_studio.plotly as py
 
+from capstone_website.src.constants import Constants
+from capstone_website.src.data import Data
+from capstone_website.src.portfolio import Portfolio, Constraints, Costs, Risks
+from capstone_website.src.optimization import Model
+from capstone_website.src.factor_models import FactorModel
+from capstone_website.src.backtest import Backtest
+
+
+constants = Constants()
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -65,22 +73,27 @@ class Stock(db.Model):
             )
 
             stock_data = pd.read_sql(stock_query.statement, db.session.bind)
+
             if stock_data.shape[0]:
+                stock_data = stock_data.groupby(['date', 'ticker']).last().reset_index()
                 if cols is not None and isinstance(cols, list):
                     stock_data = stock_data[cols]
-                #TODO: grouper was giving me errors
+
+                # TODO: grouper was giving me errors
                 # stock_data = stock_data.groupby(pd.Grouper(freq=freq)).last().dropna()
 
-            retrieved_tickers = stock_data.ticker.unique().tolist()
-            missing_tickers = [x for x in tickers if x not in retrieved_tickers]
-            tiingo_data = Stock.get_tiingo_data(missing_tickers, start_date, end_date, freq, metric_name=cols)
-            stock_data = stock_data.append(tiingo_data)
+                # TODO: This is realyl slow and computationally expensive
+                # retrieved_tickers = stock_data.ticker.unique().tolist()
+                # missing_tickers = [x for x in tickers if x not in retrieved_tickers]
+                # tiingo_data = Stock.get_tiingo_data(missing_tickers, start_date, end_date, freq, metric_name=cols)
+                # stock_data = stock_data.append(tiingo_data)
 
         except Exception as e:
+            # Commenting this out to avoid accidentally pulling a whole bunch of data from Tiingo
             print(f"Stock:get_data - Ran into Exception: {e}. Retrieving from Tiingo...")
-            stock_data = Stock.get_tiingo_data(tickers, start_date, end_date, freq, metric_name=cols)
+            # stock_data = Stock.get_tiingo_data(tickers, start_date, end_date, freq, metric_name=cols)
+            stock_data = pd.DataFrame({})
 
-        stock_data = stock_data.groupby(['date', 'ticker']).last().reset_index()
         return stock_data
 
     @staticmethod
@@ -131,6 +144,11 @@ class Stock(db.Model):
         print(stock_data)
         return stock_data
 
+    @staticmethod
+    def get_stock_universe(start_date=constants.START_DATE, end_date=constants.END_DATE):
+        return Stock.get_data(constants.STOCK_UNIVERSE, start_date, end_date)
+
+
 class PortfolioInfo(db.Model):
     __tablename__ = "portfolio_info"
 
@@ -158,7 +176,57 @@ class PortfolioInfo(db.Model):
         portfolios = PortfolioInfo.query.filter_by(user_id=user_id)
         return portfolios
 
+
     def create_portfolio(self):
+
+        # TODO
+        # Get risk tolerance from user input
+
+        # Iniitalize Data
+        price_data = Stock.get_stock_universe(constants.START_DATE, constants.END_DATE)
+        rfr = Stock.get_data(constants.RF_RATE, constants.START_DATE, constants.END_DATE)
+        data_set = Data(price_data, rfr, [i for i in range(100)])
+        data_set.set_factor_returns()
+
+        # Initialize Portfolio
+        num_stocks = data_set.get_num_stocks()
+        port = Portfolio(data_set)
+
+        # Set Up model
+        end_date = date.today()
+        start_date = end_date - relativedelta(years=3)
+
+        # TODO: These should probably be initialized in constants or smth?
+        lookback = 20
+        lookahead = 5
+        lam = 0.9
+        trans_coeff = 0
+        holding_coeff = 0
+        conf_level = 0.95
+
+        # Define constraints to use
+        constr_list = ["no_short", "cardinality", "asset_limit_cardinality"]
+        constr_model = Constraints(constr_list)
+
+        cost_model = Costs(trans_coeff, holding_coeff)
+        cost_model.replicate_cost_coeff(num_stocks, lookahead)
+
+        opt_model = Model(lam)
+        risk_model = Risks("MVO", conf_level)
+
+        regress_weighting = [0, 0.5, 0.5, 0]
+        factor_model = FactorModel(lookahead, lookback, regress_weighting)
+
+        back_test_ex = Backtest(start_date, end_date, lookback, lookahead)
+        back_test_ex.run(data_set, port, factor_model, opt_model, constr_model, cost_model, risk_model)
+
+        portfolio = pd.DataFrame({})
+
+        return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
+                              assets=p['assets'], weights=p['weights'], value=p['value']) for p in
+                portfolio.to_dict(orient="rows")]
+
+    def create_portfolio_old(self):
         # this is where the optimization and factor model can probably come in
 
         # query Stock object to get stocks
@@ -192,8 +260,6 @@ class PortfolioInfo(db.Model):
             return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
                                   assets=p['assets'], weights=p['weights'], value=p['value']) for p in
                     portfolio.to_dict(orient="rows")]
-
-    # def backtest(self):
 
 
 class PortfolioData(db.Model):
