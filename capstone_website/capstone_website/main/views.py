@@ -1,10 +1,17 @@
-from flask import render_template, current_app, request, redirect, url_for, flash, session
+from flask import render_template, request, redirect, url_for, flash, session
 from flask_login import login_required, current_user
+from flask_mail import Message
 from . import main
-from .forms import ContactForm, RiskForm, PortfolioForm, ConstraintForm, ResetForm, Reset2Form
-from ..models import User, PortfolioInfo, PortfolioData
-from capstone_website import db
+from .forms import ContactForm, RiskForm, PortfolioForm, ResetForm, Reset2Form, DeletePortfolio, UpdateForm
+from ..models import User, PortfolioInfo, PortfolioData, Stock
+from capstone_website import db, mail, app
+from datetime import date
 
+import chart_studio.plotly as py
+import chart_studio.tools as tls
+import plotly.graph_objects as go
+import pandas as pd
+import numpy as np
 
 @main.route('/')
 def index():
@@ -15,6 +22,13 @@ def index():
 def contact_us():
     form = ContactForm()
     if form.validate_on_submit() and request.method == 'POST':
+
+        msg = Message(subject=form.subject.data, recipients=[app.config.get("MAIL_USERNAME")],
+                      sender=app.config.get("MAIL_USERNAME"),
+                      reply_to=form.email.data, body=form.message.data)
+
+        # Send the mail
+        mail.send(msg)
 
         flash('Successfully sent us an email!')
         return redirect(url_for('main.index'))
@@ -53,20 +67,44 @@ def reset2():
 @login_required
 def dashboard():
     user = User.query.filter_by(user=current_user.user).first()
-    portfolios = PortfolioInfo.query.filter_by(user_id=user.id)
+    portfolio_info = PortfolioInfo()
+    portfolios = portfolio_info.get_portfolios(user_id=user.id)
 
     return render_template('dashboard.html', portfolios=portfolios)
 
 
 @main.route('/portfolio/<portfolio_name>')
 @login_required
-def portfolio(portfolio_name):
+def portfolio_page(portfolio_name):
 
     user = User.query.filter_by(user=current_user.user).first()
-    portfolios = PortfolioInfo.query.filter_by(user_id=user.id)
+    portfolio_info = PortfolioInfo()
+    portfolio_data = PortfolioData()
+    portfolios = portfolio_info.get_portfolios(user_id=user.id)
+    curr_portfolio = portfolio_info.get_portfolio_instance(user_id=user.id, portfolio_name=portfolio_name)
+
+    portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=curr_portfolio.id)
+    portfolio_graph = create_portfolio_graph(portfolio_data_df)
+
+    return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio,
+                           portfolio_graph=portfolio_graph)
+
+
+@main.route('/portfolio/<portfolio_name>/delete', methods=["GET", "POST"])
+@login_required
+def delete_portfolio(portfolio_name):
+    form = DeletePortfolio()
+    user = User.query.filter_by(user=current_user.user).first()
     curr_portfolio = PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).first()
 
-    return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio)
+    if form.validate_on_submit() and request.method == 'POST':
+        PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).delete()
+        db.session.commit()
+        flash('Portfolio '+ portfolio_name+ ' deleted!')
+
+        portfolios = PortfolioInfo.query.filter_by(user_id=user.id)
+        return redirect(url_for('main.dashboard', portfolios=portfolios))
+    return render_template('delete_portfolio.html', curr_portfolio=curr_portfolio, form=form)
 
 
 @main.route('/portfolio/new-risk', methods=["GET", "POST"])
@@ -76,9 +114,12 @@ def new_risk():
     if form.validate_on_submit() and request.method == 'POST':
         # Store form results in session variables
 
-        session['protect_portfolio'] = form.protectPortfolio.data
-        session['inv_philosophy'] = form.investmentPhilosophy.data
-        session['next_expenditure'] = form.expenditure.data
+        session['win'] = form.win.data
+        session['lose'] = form.lose.data
+        session['game'] = form.chanceGames.data
+        session['job'] = form.job.data
+        session['unknown'] = form.unknownOutcomes.data
+        session['monitor'] = form.monitorPortfolio.data
 
         return redirect(url_for('main.new_general')) # Go to the next set of questions
 
@@ -90,47 +131,92 @@ def new_risk():
 def new_general():
     form = PortfolioForm()
     if form.validate_on_submit() and request.method == 'POST':
-        # Store form results in session variables
-
-        session['portfolio_name'] = form.portfolioName.data
-        session['time_horizon'] = form.timeHorizon.data
-
-        return redirect(url_for('main.new_specific'))
-
-    return render_template('new_portfolio_general.html', title="New Portfolio - General", form=form)
-
-
-@main.route('/portfolio/new-specific', methods=["GET", "POST"])
-@login_required
-def new_specific():
-    form = ConstraintForm()
-    if form.validate_on_submit() and request.method == 'POST':
         # Get the user details
         user = User.query.filter_by(user=current_user.user).first()
 
         # Create a new instance of Portfolio
-        portfolio = PortfolioInfo(user_id=user.id, protect_portfolio=session['protect_portfolio'],
-                              inv_philosophy=session['inv_philosophy'], next_expenditure=session['next_expenditure'],
-                              name=session['portfolio_name'], time_horizon=session['time_horizon'])
+        portfolio = PortfolioInfo(user_id=user.id, win_philosophy=session['win'],
+                                  lose_philosophy=session['lose'], games_philosophy=session['game'],
+                                  unknown_philosophy=session['unknown'], job_philosophy=session['job'],
+                                  monitor_philosophy=session['monitor'], name=form.portfolioName.data,
+                                  time_horizon=form.timeHorizon.data, cash=form.cash.data)
 
-        # Save portfolio data into the database
+        # Save portfolio info into the database
         db.session.add(portfolio)
         db.session.commit()
 
+        # Generate a portfolio given the portfolio info
+        #TODO: Rather than pulling from PostgreSQL again, is there a way to get the portfolio_id before storing portfolio_info?
+
+        # portfolio_info = PortfolioInfo.query.filter_by(user_id=user.id, name=form.portfolioName.data).first()
+        portfolio_info = portfolio.get_portfolio_instance(user_id=user.id, portfolio_name=form.portfolioName.data)
+        portfolio_data = portfolio_info.create_portfolio()
+
+
+        # Save portfolio data into the database
+        db.session.add_all(portfolio_data)
+        db.session.commit()
+
         # Remove the session variables
-        session.pop('protect_portfolio', None)
-        session.pop('inv_philosophy', None)
-        session.pop('next_expenditure', None)
-        session.pop('portfolio_name', None)
-        session.pop('time_horizon', None)
+        session.pop('loss', None)
+        session.pop('win', None)
+        session.pop('game', None)
+        session.pop('unknown', None)
+        session.pop('job', None)
+        session.pop('monitor', None)
 
         flash('Successfully created a new Portfolio!')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.portfolio_page', portfolio_name=form.portfolioName.data))
 
-    return render_template('new_portfolio_specific.html', title="New Portfolio - Constraints", form=form)
+    return render_template('new_portfolio_general.html', title="New Portfolio - General", form=form)
 
 
-@main.route('/account')
+@main.route('/account', methods=["GET", "POST"])
 @login_required
 def account():
-    return render_template('account/account.html')
+    # Get the user details
+    user = User.query.filter_by(user=current_user.user).first()
+
+    form = UpdateForm()
+
+    if request.method == 'GET':
+        form.firstName.data = user.first_name
+        form.lastName.data = user.last_name
+        form.email.data = user.email
+
+    if request.method == 'POST' and form.validate_on_submit():
+        user.first_name = form.firstName.data
+        user.last_name = form.lastName.data
+
+        if form.email.data:
+            user.email = form.email.data
+
+        if form.password.data:
+            user.password = form.password.data
+
+        db.session.commit()
+
+        # Clear sensitive information
+        form.password.data = ""
+        form.confirm.data = ""
+
+        flash("Successfully updated your account information!")
+        return render_template('account/account.html', form=form)
+
+    return render_template('account/account.html', form=form)
+
+
+# Helper Function Below
+def create_portfolio_graph(portfolio):
+    print(portfolio)
+    if portfolio.shape[0]:
+        # Render a graph and return the URL
+        layout = go.Layout(yaxis=dict(tickformat=".2%"))
+        fig = go.Figure(data=go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value"), layout=layout)
+        fig.update_xaxes(title_text='Date')
+        fig.update_yaxes(title_text='Portfolio Value')
+        portfolio_graph_url = py.plot(fig, filename="portfolio_graph", auto_open=False, )
+        print(portfolio_graph_url)
+        plot_html = tls.get_embed(portfolio_graph_url)
+
+        return plot_html

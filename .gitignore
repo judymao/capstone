@@ -3,3 +3,9 @@
 
 # .pyc files
 *.pyc
+
+#ipynb_checkpoints folder
+.ipynb_checkpoints/
+
+#DS_store file
+.DS_store

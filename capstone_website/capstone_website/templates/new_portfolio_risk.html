@@ -7,7 +7,7 @@ Add New Portfolio
 
 {% block styles %}
 {{super()}}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/questionnaire.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -20,9 +20,12 @@ Add New Portfolio
                 ability. We will use this information to determine your risk tolerance.</b>
             </p>
             {{ form.hidden_tag() }}
-            {{ render_field(form.protectPortfolio) }}
-            {{ render_field(form.investmentPhilosophy) }}
-            {{ render_field(form.expenditure) }}
+            {{ render_field(form.win) }}
+            {{ render_field(form.lose) }}
+            {{ render_field(form.chanceGames) }}
+            {{ render_field(form.job) }}
+            {{ render_field(form.unknownOutcomes) }}
+            {{ render_field(form.monitorPortfolio) }}
             <p class="text-center">Please make sure that you are satisfied with your answers before proceeding to
                 the next step.</p>
 

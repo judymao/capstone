@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from 'bootstrap/form.html' import render_form, render_field %}
+
+{% block title %}
+Delete Portfolio
+{% endblock %}
+
+{% block styles %}
+{{super()}}
+<link rel="stylesheet" href="{{url_for('static', filename='css/auth.css')}}">
+{% endblock %}
+
+{% block content %}
+<div class="login-page">
+    <div class="form">
+        <form class="contact-form" method="POST">
+            <h2 class="form-heading"><b>Delete Portfolio - {{ curr_portfolio.name }} </b></h2>
+            {{ form.hidden_tag() }}
+            {{ render_field(form.delete) }}
+            <button class="btn btn-lg btn-primary btn-block" type="submit">Delete Portfolio</button>
+        </form>
+        <br>
+        <div class="message-hyper" align="center">
+            Change your mind? <a href="{{ url_for('main.portfolio_page', portfolio_name=curr_portfolio.name)}}">Return to
+            Portfolio</a>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
