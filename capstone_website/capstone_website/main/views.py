@@ -211,11 +211,11 @@ def create_portfolio_graph(portfolio):
     print(portfolio)
     if portfolio.shape[0]:
         # Render a graph and return the URL
-        fig = go.Figure(data=go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value"))
+        layout = go.Layout(yaxis=dict(tickformat=".2%"))
+        fig = go.Figure(data=go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value"), layout=layout)
         fig.update_xaxes(title_text='Date')
         fig.update_yaxes(title_text='Portfolio Value')
-        portfolio_graph_url = py.plot(fig, filename="portfolio_value", auto_open=False, )
-        print("Hello")
+        portfolio_graph_url = py.plot(fig, filename="portfolio_graph", auto_open=False, )
         print(portfolio_graph_url)
         plot_html = tls.get_embed(portfolio_graph_url)
 

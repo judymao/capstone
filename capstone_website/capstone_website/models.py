@@ -168,6 +168,9 @@ class PortfolioInfo(db.Model):
     holding_constraint = db.Column(db.Float)
     trade_size_constraint = db.Column(db.Float)
 
+    def __repr__(self):
+        return '<PortfolioInfo %r>' % self.id
+
     def get_portfolio_instance(self, user_id, portfolio_name):
         portfolio_instance = self.query.filter_by(user_id=user_id, name=portfolio_name).first()
         return portfolio_instance
@@ -184,8 +187,16 @@ class PortfolioInfo(db.Model):
 
         # Iniitalize Data
         price_data = Stock.get_stock_universe(constants.START_DATE, constants.END_DATE)
-        rfr = Stock.get_data(constants.RF_RATE, constants.START_DATE, constants.END_DATE)
-        data_set = Data(price_data, rfr, [i for i in range(100)])
+        price_data = price_data[~price_data["close"].isnull()]
+
+        # TODO: Fix rfr
+        # rfr = Stock.get_data(constants.RF_RATE, constants.START_DATE, constants.END_DATE).set_index("date")[["close"]].rename(columns={"close": "risk_free"})
+        price_data = price_data[["date", "ticker", "close"]].pivot(index=price_data["date"], columns="ticker")["close"]
+        original_shape = price_data.shape[0]
+        price_data = price_data.dropna(thresh=1000, axis=1).dropna()
+        print(f"Dropping {original_shape - price_data.shape[0]} entries, {price_data.shape[0]} left")
+        rfr = pd.DataFrame({'risk_free': [0.01]*len(price_data.index)}, index = price_data.index)
+        data_set = Data(price_data, rfr)
         data_set.set_factor_returns()
 
         # Initialize Portfolio
@@ -197,7 +208,7 @@ class PortfolioInfo(db.Model):
         start_date = end_date - relativedelta(years=3)
 
         # TODO: These should probably be initialized in constants or smth?
-        lookback = 20
+        lookback = 10
         lookahead = 5
         lam = 0.9
         trans_coeff = 0
@@ -220,10 +231,12 @@ class PortfolioInfo(db.Model):
         back_test_ex = Backtest(start_date, end_date, lookback, lookahead)
         back_test_ex.run(data_set, port, factor_model, opt_model, constr_model, cost_model, risk_model)
 
-        portfolio = pd.DataFrame({})
+        portfolio = pd.DataFrame({"date": port.dates, "value": port.returns})
+        portfolio.loc[:, "user_id"] = self.user_id
+        portfolio.loc[:, "portfolio_id"] = self.id
 
         return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
-                              assets=p['assets'], weights=p['weights'], value=p['value']) for p in
+                              value=p['value']) for p in
                 portfolio.to_dict(orient="rows")]
 
     def create_portfolio_old(self):
@@ -273,7 +286,7 @@ class PortfolioData(db.Model):
     date = db.Column(db.Date)
     assets = db.Column(db.ARRAY(db.String(255)))
     weights = db.Column(db.ARRAY(db.Float))
-    value = db.Column(db.Integer)
+    value = db.Column(db.Float)
 
     def get_portfolio_data_df(self, user_id, portfolio_id):
         portfolio_data = self.query.filter_by(user_id=user_id, portfolio_id=portfolio_id)
