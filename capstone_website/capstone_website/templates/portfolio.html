@@ -45,7 +45,7 @@
                     <ul class="nav flex-column mb-2">
                     {%  for portfolio in portfolios %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('main.portfolio', portfolio_name=portfolio['name'])
+                            <a class="nav-link" href="{{ url_for('main.portfolio_page', portfolio_name=portfolio['name'])
                                     }}">
                                 {{ portfolio['name'] }}
                             </a>
@@ -75,9 +75,9 @@
                     role="button">Delete Portfolio</a>
                 </div>
 
-                <canvas class="my-4 chartjs-render-monitor" id="myChart" width="862" height="363"
-                        style="display: block; width: 575px; height: 242px;"></canvas>
-
+                <div class="graph">
+                    {{ portfolio_graph | safe }}
+                </div>
 
             </main>
         </div>

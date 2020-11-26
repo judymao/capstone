@@ -3,8 +3,15 @@ from flask_login import login_required, current_user
 from flask_mail import Message
 from . import main
 from .forms import ContactForm, RiskForm, PortfolioForm, ResetForm, Reset2Form, DeletePortfolio, UpdateForm
-from ..models import User, PortfolioInfo, PortfolioData
+from ..models import User, PortfolioInfo, PortfolioData, Stock
 from capstone_website import db, mail, app
+from datetime import date
+
+import chart_studio.plotly as py
+import chart_studio.tools as tls
+import plotly.graph_objects as go
+import pandas as pd
+import numpy as np
 
 @main.route('/')
 def index():
@@ -60,20 +67,27 @@ def reset2():
 @login_required
 def dashboard():
     user = User.query.filter_by(user=current_user.user).first()
-    portfolios = PortfolioInfo.query.filter_by(user_id=user.id)
+    portfolio_info = PortfolioInfo()
+    portfolios = portfolio_info.get_portfolios(user_id=user.id)
 
     return render_template('dashboard.html', portfolios=portfolios)
 
 
 @main.route('/portfolio/<portfolio_name>')
 @login_required
-def portfolio(portfolio_name):
+def portfolio_page(portfolio_name):
 
     user = User.query.filter_by(user=current_user.user).first()
-    portfolios = PortfolioInfo.query.filter_by(user_id=user.id)
-    curr_portfolio = PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).first()
+    portfolio_info = PortfolioInfo()
+    portfolio_data = PortfolioData()
+    portfolios = portfolio_info.get_portfolios(user_id=user.id)
+    curr_portfolio = portfolio_info.get_portfolio_instance(user_id=user.id, portfolio_name=portfolio_name)
 
-    return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio)
+    portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=curr_portfolio.id)
+    portfolio_graph = create_portfolio_graph(portfolio_data_df)
+
+    return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio,
+                           portfolio_graph=portfolio_graph)
 
 
 @main.route('/portfolio/<portfolio_name>/delete', methods=["GET", "POST"])
@@ -133,8 +147,11 @@ def new_general():
 
         # Generate a portfolio given the portfolio info
         #TODO: Rather than pulling from PostgreSQL again, is there a way to get the portfolio_id before storing portfolio_info?
-        portfolio_info = PortfolioInfo.query.filter_by(user_id=user.id, name=session['portfolio_name']).first()
-        portfolio_graph, portfolio_data = portfolio_info.create_portfolio()
+
+        # portfolio_info = PortfolioInfo.query.filter_by(user_id=user.id, name=form.portfolioName.data).first()
+        portfolio_info = portfolio.get_portfolio_instance(user_id=user.id, portfolio_name=form.portfolioName.data)
+        portfolio_data = portfolio_info.create_portfolio()
+
 
         # Save portfolio data into the database
         db.session.add_all(portfolio_data)
@@ -149,7 +166,7 @@ def new_general():
         session.pop('monitor', None)
 
         flash('Successfully created a new Portfolio!')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.portfolio_page', portfolio_name=form.portfolioName.data))
 
     return render_template('new_portfolio_general.html', title="New Portfolio - General", form=form)
 
@@ -187,3 +204,19 @@ def account():
         return render_template('account/account.html', form=form)
 
     return render_template('account/account.html', form=form)
+
+
+# Helper Function Below
+def create_portfolio_graph(portfolio):
+    print(portfolio)
+    if portfolio.shape[0]:
+        # Render a graph and return the URL
+        layout = go.Layout(yaxis=dict(tickformat=".2%"))
+        fig = go.Figure(data=go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value"), layout=layout)
+        fig.update_xaxes(title_text='Date')
+        fig.update_yaxes(title_text='Portfolio Value')
+        portfolio_graph_url = py.plot(fig, filename="portfolio_graph", auto_open=False, )
+        print(portfolio_graph_url)
+        plot_html = tls.get_embed(portfolio_graph_url)
+
+        return plot_html

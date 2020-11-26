@@ -1,24 +1,21 @@
-from capstone_website import db, login_manager
+from capstone_website import db, login_manager, client
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 import tiingo
-import pandas_datareader as pdr
-from datetime import date
+from datetime import date, timedelta
+from dateutil.relativedelta import relativedelta
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
-import chart_studio.plotly as py
 
-# TODO: This is really hacky initialization
-import chart_studio
-chart_studio.tools.set_credentials_file(username='marycapstone', api_key='lLReEJuDrPeBrZCBzpMr')
+from capstone_website.src.constants import Constants
+from capstone_website.src.data import Data
+from capstone_website.src.portfolio import Portfolio, Constraints, Costs, Risks
+from capstone_website.src.optimization import Model
+from capstone_website.src.factor_models import FactorModel
+from capstone_website.src.backtest import Backtest
 
-tiingo_config = {}
-tiingo_config['session'] = True
-# TODO: API key should be a constant; maybe store in separate file
-tiingo_config['api_key'] = "58245c95b56205705dabecbbfd7e8a346b000bf7"  # StockConstants.API
-client = tiingo.TiingoClient(tiingo_config)
 
+constants = Constants()
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -61,24 +58,95 @@ class Stock(db.Model):
     def __repr__(self):
         return '<Stock %r>' % self.ticker
 
-    def get_tiingo(self, ticker, start_date, end_date):
+    @staticmethod
+    def get_data(tickers, start_date, end_date, freq="D", cols=None):
         '''
         Check if ticker already exists in database. If not, query Tiingo
         '''
 
         try:
-            data = client.get_dataframe(ticker,
-                                        metric_name="adjClose",
-                                        startDate=start_date,
-                                        endDate=end_date,
-                                        frequency="monthly")  # TODO: turn this to variable
-        except tiingo.restclient.RestClientError:
-            print(f"Failed for ticker: {ticker}")
 
-        #TODO: what do I want to return from here?
-        rets = data.pct_change().dropna()  # return timeseries
-        # rets.columns = [ticker]
-        return rets
+            stock_query = Stock.query.filter(
+                Stock.date >= start_date,
+                Stock.date <= end_date,
+                Stock.ticker.in_(tickers)
+            )
+
+            stock_data = pd.read_sql(stock_query.statement, db.session.bind)
+
+            if stock_data.shape[0]:
+                stock_data = stock_data.groupby(['date', 'ticker']).last().reset_index()
+                if cols is not None and isinstance(cols, list):
+                    stock_data = stock_data[cols]
+
+                # TODO: grouper was giving me errors
+                # stock_data = stock_data.groupby(pd.Grouper(freq=freq)).last().dropna()
+
+                # TODO: This is realyl slow and computationally expensive
+                # retrieved_tickers = stock_data.ticker.unique().tolist()
+                # missing_tickers = [x for x in tickers if x not in retrieved_tickers]
+                # tiingo_data = Stock.get_tiingo_data(missing_tickers, start_date, end_date, freq, metric_name=cols)
+                # stock_data = stock_data.append(tiingo_data)
+
+        except Exception as e:
+            # Commenting this out to avoid accidentally pulling a whole bunch of data from Tiingo
+            print(f"Stock:get_data - Ran into Exception: {e}. Retrieving from Tiingo...")
+            # stock_data = Stock.get_tiingo_data(tickers, start_date, end_date, freq, metric_name=cols)
+            stock_data = pd.DataFrame({})
+
+        return stock_data
+
+    @staticmethod
+    def get_tiingo_data(tickers, start_date, end_date, freq="D", metric_name=None):
+
+        freq_mapping = {"D" : "daily",
+                        "M": "monthly"}
+
+        tiingo_col = ["adjOpen", "adjHigh", "adjLow", "adjClose", "adjVolume"]
+        col_mapping = {x: x.strip("adj").lower() for x in tiingo_col}
+
+        freq = "D" if freq not in freq_mapping.keys() else freq
+
+        stock_data = pd.DataFrame({})
+        for ticker in tickers:
+            try:
+                if metric_name is not None:
+                    data = client.get_dataframe(ticker,
+                                                metric_name=metric_name,
+                                                startDate=start_date,
+                                                endDate=end_date,
+                                                frequency=freq_mapping[freq])
+                else:
+                    data = client.get_dataframe(ticker,
+                                                startDate=start_date,
+                                                endDate=end_date,
+                                                frequency=freq_mapping[freq])
+
+                data = data[tiingo_col].rename(columns=col_mapping)
+                data["ticker"] = ticker
+                data = data.reset_index()
+                stock_data = stock_data.append(data)
+
+            except tiingo.restclient.RestClientError:
+                print(f"Failed for ticker: {ticker}")
+
+        # Store retrieved stock data to the database
+        if stock_data.shape[0]:
+            # TODO: Grouper giving me issues
+            # stock_data = stock_data.groupby(pd.Grouper(freq=freq)).last().dropna()
+            stocks = [Stock(ticker=stock["ticker"], date=stock["date"],
+                            open=stock["open"], close=stock["close"],
+                            high=stock["high"], low=stock["low"],
+                            volume=stock["volume"]) for stock in stock_data.to_dict(orient="rows")]
+            db.session.add_all(stocks)
+            db.session.commit()
+
+        print(stock_data)
+        return stock_data
+
+    @staticmethod
+    def get_stock_universe(start_date=constants.START_DATE, end_date=constants.END_DATE):
+        return Stock.get_data(constants.STOCK_UNIVERSE, start_date, end_date)
 
 
 class PortfolioInfo(db.Model):
@@ -100,9 +168,78 @@ class PortfolioInfo(db.Model):
     holding_constraint = db.Column(db.Float)
     trade_size_constraint = db.Column(db.Float)
 
+    def __repr__(self):
+        return '<PortfolioInfo %r>' % self.id
+
+    def get_portfolio_instance(self, user_id, portfolio_name):
+        portfolio_instance = self.query.filter_by(user_id=user_id, name=portfolio_name).first()
+        return portfolio_instance
+
+    def get_portfolios(self, user_id):
+        portfolios = PortfolioInfo.query.filter_by(user_id=user_id)
+        return portfolios
+
 
     def create_portfolio(self):
 
+        # TODO
+        # Get risk tolerance from user input
+
+        # Iniitalize Data
+        price_data = Stock.get_stock_universe(constants.START_DATE, constants.END_DATE)
+        price_data = price_data[~price_data["close"].isnull()]
+
+        # TODO: Fix rfr
+        # rfr = Stock.get_data(constants.RF_RATE, constants.START_DATE, constants.END_DATE).set_index("date")[["close"]].rename(columns={"close": "risk_free"})
+        price_data = price_data[["date", "ticker", "close"]].pivot(index=price_data["date"], columns="ticker")["close"]
+        original_shape = price_data.shape[0]
+        price_data = price_data.dropna(thresh=1000, axis=1).dropna()
+        print(f"Dropping {original_shape - price_data.shape[0]} entries, {price_data.shape[0]} left")
+        rfr = pd.DataFrame({'risk_free': [0.01]*len(price_data.index)}, index = price_data.index)
+        data_set = Data(price_data, rfr)
+        data_set.set_factor_returns()
+
+        # Initialize Portfolio
+        num_stocks = data_set.get_num_stocks()
+        port = Portfolio(data_set)
+
+        # Set Up model
+        end_date = date.today()
+        start_date = end_date - relativedelta(years=3)
+
+        # TODO: These should probably be initialized in constants or smth?
+        lookback = 10
+        lookahead = 5
+        lam = 0.9
+        trans_coeff = 0
+        holding_coeff = 0
+        conf_level = 0.95
+
+        # Define constraints to use
+        constr_list = ["no_short", "cardinality", "asset_limit_cardinality"]
+        constr_model = Constraints(constr_list)
+
+        cost_model = Costs(trans_coeff, holding_coeff)
+        cost_model.replicate_cost_coeff(num_stocks, lookahead)
+
+        opt_model = Model(lam)
+        risk_model = Risks("MVO", conf_level)
+
+        regress_weighting = [0, 0.5, 0.5, 0]
+        factor_model = FactorModel(lookahead, lookback, regress_weighting)
+
+        back_test_ex = Backtest(start_date, end_date, lookback, lookahead)
+        back_test_ex.run(data_set, port, factor_model, opt_model, constr_model, cost_model, risk_model)
+
+        portfolio = pd.DataFrame({"date": port.dates, "value": port.returns})
+        portfolio.loc[:, "user_id"] = self.user_id
+        portfolio.loc[:, "portfolio_id"] = self.id
+
+        return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
+                              value=p['value']) for p in
+                portfolio.to_dict(orient="rows")]
+
+    def create_portfolio_old(self):
         # this is where the optimization and factor model can probably come in
 
         # query Stock object to get stocks
@@ -112,42 +249,30 @@ class PortfolioInfo(db.Model):
         # This code is garbage but will be replaced so whatevs I guess
 
         start_date = date(2019, 11, 10)
-        tickers = ["MSFT", "AAPL"]
+        tickers = ["GOOGL", "AAPL"]
         num_assets = len(tickers)
 
-        stock_query = Stock.query.filter(Stock.date >= start_date)
-        stock_data = pd.read_sql(stock_query.statement, db.session.bind)
+        # stock_query = Stock.query.filter(Stock.date >= start_date)
+        # stock_data = pd.read_sql(stock_query.statement, db.session.bind)
+        stock_data = Stock.get_data(tickers=tickers, start_date=start_date, end_date=date.today())
 
         if stock_data.shape[0]:
             # Only get close data and aggregate by date
             # Caution: date formats MIGHT beself different since it's datetime, not date
             stock_data = stock_data[["ticker", "date", "close"]]
             portfolio = pd.DataFrame({"assets": stock_data.groupby("date")["ticker"].unique()}).reset_index()
+            # TODO: currently ignoring dates where inconsistent number of assets
             portfolio.loc[:, "close"] = stock_data.groupby("date")["close"].unique().values
+            portfolio = portfolio[portfolio["assets"].apply(lambda row: len(row)) > 1]
             portfolio["weights"] = [[1/num_assets for i in range(num_assets)] for x in range(portfolio.shape[0])]
-            portfolio.loc[:, "value"] = [np.dot(np.array(portfolio.close[x]), np.array(portfolio.weights[x])) for x in range(portfolio.shape[0])]
+            portfolio.loc[:, "value"] = [np.dot(np.array(portfolio.close.iloc[x]), np.array(portfolio.weights.iloc[x])) for x in range(portfolio.shape[0])]
             portfolio = portfolio.drop("close", axis=1)
             portfolio.loc[:, "user_id"] = self.user_id
             portfolio.loc[:, "portfolio_id"] = self.id
 
-            # Render a graph and return the URL
-            fig = go.Figure(data=go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value"))
-            fig.update_xaxes(title_text='Date')
-            fig.update_yaxes(title_text='Portfolio Value')
-            portfolio_graph_url = py.plot(fig, filename="portfolio_value", auto_open=False, )
-            # print(portfolio_graph_url)
-
-            # TODO
-            # Render a table of portfolio stats
-            # portfolio_table =
-
-            return portfolio_graph_url, [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
-                                  assets=p['assets'], weights=p['weights'], value=p['value']) for p in portfolio.to_dict(orient="rows")]
-
-
-
-    # def backtest(self):
-
+            return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
+                                  assets=p['assets'], weights=p['weights'], value=p['value']) for p in
+                    portfolio.to_dict(orient="rows")]
 
 
 class PortfolioData(db.Model):
@@ -161,12 +286,15 @@ class PortfolioData(db.Model):
     date = db.Column(db.Date)
     assets = db.Column(db.ARRAY(db.String(255)))
     weights = db.Column(db.ARRAY(db.Float))
-    value = db.Column(db.Integer)
+    value = db.Column(db.Float)
+
+    def get_portfolio_data_df(self, user_id, portfolio_id):
+        portfolio_data = self.query.filter_by(user_id=user_id, portfolio_id=portfolio_id)
+        portfolio_data_df = pd.read_sql(portfolio_data.statement, db.session.bind)
+        return portfolio_data_df
 
 
-
-
-db.create_all() # Create tables in the db if they do not already exist
+db.create_all()  # Create tables in the db if they do not already exist
 
 
 @login_manager.user_loader
