@@ -231,9 +231,11 @@ class PortfolioInfo(db.Model):
         price_data = Stock.get_stock_universe(constants.START_DATE, constants.END_DATE)
         price_data = price_data[~price_data["close"].isnull()]
 
+        print(price_data)
         # TODO: Fix rfr
         # rfr = Stock.get_data(constants.RF_RATE, constants.START_DATE, constants.END_DATE).set_index("date")[["close"]].rename(columns={"close": "risk_free"})
-        price_data = price_data[["date", "ticker", "close"]].pivot(index=price_data["date"], columns="ticker")["close"]
+        # price_data = price_data[["date", "ticker", "close"]].pivot(index=price_data["date"], columns="ticker")["close"]
+        price_data = price_data[["date", "ticker", "close"]].pivot(index="date", columns="ticker", values="close")
         original_shape = price_data.shape[0]
         price_data = price_data.dropna(thresh=1000, axis=1)
         print(f"Dropping {original_shape - price_data.shape[0]} entries, {price_data.shape[0]} left. {price_data.shape[1]} stocks")
