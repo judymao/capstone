@@ -15,7 +15,7 @@ def clean():
     start_time = datetime(end_time.year - 14, end_time.month, end_time.day)
     print(f"Retrieving data from {start_time} to {end_time}...")
 
-    Stock.get_data(constants.STOCK_UNIVERSE, start_time, end_time)
+    stocks = Stock.get_data(constants.STOCK_UNIVERSE, start_time, end_time)
 
 
 if __name__ == "__main__":

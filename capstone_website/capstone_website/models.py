@@ -183,7 +183,6 @@ class Stock(db.Model):
             db.session.add_all(stocks)
             db.session.commit()
 
-        print(stock_data)
         return stock_data
 
     @staticmethod
