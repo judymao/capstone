@@ -46,14 +46,13 @@ class User(UserMixin, db.Model):
 class Stock(db.Model):
     __tablename__ = "stocks"
 
-    id = db.Column(db.Integer, primary_key=True)
-    ticker = db.Column(db.String(255))
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    ticker = db.Column(db.String(255), primary_key=True)
     date = db.Column(db.Date)
     open = db.Column(db.Float)
     high = db.Column(db.Float)
     low = db.Column(db.Float)
     close = db.Column(db.Float)
-    volume = db.Column(db.Integer)
 
     def __repr__(self):
         return '<Stock %r>' % self.ticker
@@ -193,8 +192,8 @@ class PortfolioInfo(db.Model):
         # rfr = Stock.get_data(constants.RF_RATE, constants.START_DATE, constants.END_DATE).set_index("date")[["close"]].rename(columns={"close": "risk_free"})
         price_data = price_data[["date", "ticker", "close"]].pivot(index=price_data["date"], columns="ticker")["close"]
         original_shape = price_data.shape[0]
-        price_data = price_data.dropna(thresh=1000, axis=1).dropna()
-        print(f"Dropping {original_shape - price_data.shape[0]} entries, {price_data.shape[0]} left")
+        price_data = price_data.dropna(thresh=1000, axis=1)
+        print(f"Dropping {original_shape - price_data.shape[0]} entries, {price_data.shape[0]} left. {price_data.shape[1]} stocks")
         rfr = pd.DataFrame({'risk_free': [0.01]*len(price_data.index)}, index = price_data.index)
         data_set = Data(price_data, rfr)
         data_set.set_factor_returns()
@@ -231,48 +230,18 @@ class PortfolioInfo(db.Model):
         back_test_ex = Backtest(start_date, end_date, lookback, lookahead)
         back_test_ex.run(data_set, port, factor_model, opt_model, constr_model, cost_model, risk_model)
 
-        portfolio = pd.DataFrame({"date": port.dates, "value": port.returns})
+        cumu_returns = np.array([x + 1 for x in port.returns]).cumprod()
+        portfolio = pd.DataFrame({"date": [start_date] + port.dates, "value": [self.cash] + (cumu_returns * self.cash).tolist(),
+                                  "assets": [price_data.columns.tolist() + ["RISK_FREE"] for _ in range(len(port.weights))],
+                                  "weights": [x.tolist() for x in port.weights]
+                                  })
         portfolio.loc[:, "user_id"] = self.user_id
         portfolio.loc[:, "portfolio_id"] = self.id
 
         return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
+                              assets=p["assets"], weights=p["weights"],
                               value=p['value']) for p in
                 portfolio.to_dict(orient="rows")]
-
-    def create_portfolio_old(self):
-        # this is where the optimization and factor model can probably come in
-
-        # query Stock object to get stocks
-        # random_stock = Stock.query
-
-        # Create a random portfolio
-        # This code is garbage but will be replaced so whatevs I guess
-
-        start_date = date(2019, 11, 10)
-        tickers = ["GOOGL", "AAPL"]
-        num_assets = len(tickers)
-
-        # stock_query = Stock.query.filter(Stock.date >= start_date)
-        # stock_data = pd.read_sql(stock_query.statement, db.session.bind)
-        stock_data = Stock.get_data(tickers=tickers, start_date=start_date, end_date=date.today())
-
-        if stock_data.shape[0]:
-            # Only get close data and aggregate by date
-            # Caution: date formats MIGHT beself different since it's datetime, not date
-            stock_data = stock_data[["ticker", "date", "close"]]
-            portfolio = pd.DataFrame({"assets": stock_data.groupby("date")["ticker"].unique()}).reset_index()
-            # TODO: currently ignoring dates where inconsistent number of assets
-            portfolio.loc[:, "close"] = stock_data.groupby("date")["close"].unique().values
-            portfolio = portfolio[portfolio["assets"].apply(lambda row: len(row)) > 1]
-            portfolio["weights"] = [[1/num_assets for i in range(num_assets)] for x in range(portfolio.shape[0])]
-            portfolio.loc[:, "value"] = [np.dot(np.array(portfolio.close.iloc[x]), np.array(portfolio.weights.iloc[x])) for x in range(portfolio.shape[0])]
-            portfolio = portfolio.drop("close", axis=1)
-            portfolio.loc[:, "user_id"] = self.user_id
-            portfolio.loc[:, "portfolio_id"] = self.id
-
-            return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
-                                  assets=p['assets'], weights=p['weights'], value=p['value']) for p in
-                    portfolio.to_dict(orient="rows")]
 
 
 class PortfolioData(db.Model):
