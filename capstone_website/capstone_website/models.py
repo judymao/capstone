@@ -42,7 +42,6 @@ class User(UserMixin, db.Model):
     def verify_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-
 class Stock(db.Model):
     __tablename__ = "stocks"
 
@@ -72,29 +71,71 @@ class Stock(db.Model):
             )
 
             stock_data = pd.read_sql(stock_query.statement, db.session.bind)
-
             if stock_data.shape[0]:
-                stock_data = stock_data.groupby(['date', 'ticker']).last().reset_index()
                 if cols is not None and isinstance(cols, list):
                     stock_data = stock_data[cols]
-
-                # TODO: grouper was giving me errors
+                #TODO: grouper was giving me errors
                 # stock_data = stock_data.groupby(pd.Grouper(freq=freq)).last().dropna()
 
-                # TODO: This is really slow and computationally expensive
-                retrieved_tickers = stock_data.ticker.unique().tolist()
-                missing_tickers = [x for x in tickers if x not in retrieved_tickers]
-                print(f"Missing tickers from SQL. Retrieving {len(missing_tickers)} tickers from Tiingo... ")
-                tiingo_data = Stock.get_tiingo_data(missing_tickers, start_date, end_date, freq, metric_name=cols)
-                stock_data = stock_data.append(tiingo_data)
+            retrieved_tickers = stock_data.ticker.unique().tolist()
+            missing_tickers = [x for x in tickers if x not in retrieved_tickers]
+            tiingo_data = Stock.get_tiingo_data(missing_tickers, start_date, end_date, freq, metric_name=cols)
+            stock_data = stock_data.append(tiingo_data)
 
         except Exception as e:
-            # Commenting this out to avoid accidentally pulling a whole bunch of data from Tiingo
             print(f"Stock:get_data - Ran into Exception: {e}. Retrieving from Tiingo...")
             stock_data = Stock.get_tiingo_data(tickers, start_date, end_date, freq, metric_name=cols)
-            # stock_data = pd.DataFrame({})
 
         return stock_data
+
+    @staticmethod
+    def get_tiingo_data(tickers, start_date, end_date, freq="D", metric_name=None):
+
+        freq_mapping = {"D" : "daily",
+                        "M": "monthly"}
+
+        tiingo_col = ["adjOpen", "adjHigh", "adjLow", "adjClose"]
+        col_mapping = {x: x.strip("adj").lower() for x in tiingo_col}
+
+        freq = "D" if freq not in freq_mapping.keys() else freq
+
+        stock_data = pd.DataFrame({})
+        for ticker in tickers:
+            try:
+                if metric_name is not None:
+                    data = client.get_dataframe(ticker,
+                                                metric_name=metric_name,
+                                                startDate=start_date,
+                                                endDate=end_date,
+                                                frequency=freq_mapping[freq])
+                else:
+                    data = client.get_dataframe(ticker,
+                                                startDate=start_date,
+                                                endDate=end_date,
+                                                frequency=freq_mapping[freq])
+
+                data = data[tiingo_col].rename(columns=col_mapping)
+                data["ticker"] = ticker
+                data = data.reset_index()
+                data["id"] = data.index
+                data[["open", "close", "high", "low"]] = data[["open", "close", "high", "low"]].apply(lambda x: round(x, 5))
+                stock_data = stock_data.append(data)
+
+            except tiingo.restclient.RestClientError:
+                print(f"Failed for ticker: {ticker}")
+
+        # Store retrieved stock data to the database
+        if stock_data.shape[0]:
+            # TODO: Grouper giving me issues
+            # stock_data = stock_data.groupby(pd.Grouper(freq=freq)).last().dropna()
+            stocks = [Stock(ticker=stock["ticker"], date=stock["date"],
+                            open=stock["open"], close=stock["close"],
+                            high=stock["high"], low=stock["low"]) for stock in stock_data.to_dict(orient="rows")]
+            db.session.add_all(stocks)
+            db.session.commit()
+
+        return stock_data
+
 
     @staticmethod
     def get_tiingo_data(tickers, start_date, end_date, freq="D", metric_name=None):
@@ -138,8 +179,7 @@ class Stock(db.Model):
             # stock_data = stock_data.groupby(pd.Grouper(freq=freq)).last().dropna()
             stocks = [Stock(ticker=stock["ticker"], date=stock["date"],
                             open=stock["open"], close=stock["close"],
-                            high=stock["high"], low=stock["low"],
-                            volume=stock["volume"]) for stock in stock_data.to_dict(orient="rows")]
+                            high=stock["high"], low=stock["low"]) for stock in stock_data.to_dict(orient="rows")]
             db.session.add_all(stocks)
             db.session.commit()
 
