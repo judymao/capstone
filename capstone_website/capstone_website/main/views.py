@@ -100,7 +100,7 @@ def delete_portfolio(portfolio_name):
     curr_portfolio = PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).first()
 
     if form.validate_on_submit() and request.method == 'POST':
-        PortfolioData.query.filter_by(user_id=user.id, name=portfolio_name).delete()
+        PortfolioData.query.filter_by(user_id=user.id, portfolio_id=curr_portfolio.id).delete()
         PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).delete()
         db.session.commit()
         flash('Portfolio ' + portfolio_name + ' deleted!')
@@ -214,7 +214,7 @@ def account():
 
 # Helper Function Below
 def create_portfolio_graph(portfolio):
-    print(portfolio)
+    # print(portfolio)
     if portfolio.shape[0]:
         # Render a graph and return the URL
         # layout = go.Layout(yaxis=dict(tickformat=".2%"))
