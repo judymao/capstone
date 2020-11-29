@@ -6,6 +6,7 @@ from .forms import ContactForm, RiskForm, PortfolioForm, ResetForm, Reset2Form, 
 from ..models import User, PortfolioInfo, PortfolioData, Stock
 from capstone_website import db, mail, app
 from datetime import date
+from timeit import default_timer as timer
 
 import chart_studio.plotly as py
 import chart_studio.tools as tls
@@ -85,6 +86,7 @@ def portfolio_page(portfolio_name):
 
     portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=curr_portfolio.id)
     portfolio_graph = create_portfolio_graph(portfolio_data_df)
+    portfolio_pie = create_portfolio_pie(portfolio_data_df)
 
     return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio,
                            portfolio_graph=portfolio_graph)
@@ -98,9 +100,10 @@ def delete_portfolio(portfolio_name):
     curr_portfolio = PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).first()
 
     if form.validate_on_submit() and request.method == 'POST':
+        PortfolioData.query.filter_by(user_id=user.id, name=portfolio_name).delete()
         PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).delete()
         db.session.commit()
-        flash('Portfolio '+ portfolio_name+ ' deleted!')
+        flash('Portfolio ' + portfolio_name + ' deleted!')
 
         portfolios = PortfolioInfo.query.filter_by(user_id=user.id)
         return redirect(url_for('main.dashboard', portfolios=portfolios))
@@ -148,10 +151,13 @@ def new_general():
         # Generate a portfolio given the portfolio info
         #TODO: Rather than pulling from PostgreSQL again, is there a way to get the portfolio_id before storing portfolio_info?
 
+
+        start = timer()
         # portfolio_info = PortfolioInfo.query.filter_by(user_id=user.id, name=form.portfolioName.data).first()
         portfolio_info = portfolio.get_portfolio_instance(user_id=user.id, portfolio_name=form.portfolioName.data)
         portfolio_data = portfolio_info.create_portfolio()
-
+        end = timer()
+        print(f"Creating portfolio took: {end - start} seconds")
 
         # Save portfolio data into the database
         db.session.add_all(portfolio_data)
@@ -211,12 +217,26 @@ def create_portfolio_graph(portfolio):
     print(portfolio)
     if portfolio.shape[0]:
         # Render a graph and return the URL
-        layout = go.Layout(yaxis=dict(tickformat=".2%"))
-        fig = go.Figure(data=go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value"), layout=layout)
+        # layout = go.Layout(yaxis=dict(tickformat=".2%"))
+        fig = go.Figure(data=go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value")) #, layout=layout)
         fig.update_xaxes(title_text='Date')
         fig.update_yaxes(title_text='Portfolio Value')
         portfolio_graph_url = py.plot(fig, filename="portfolio_graph", auto_open=False, )
         print(portfolio_graph_url)
         plot_html = tls.get_embed(portfolio_graph_url)
 
+        return plot_html
+
+
+def create_portfolio_pie(portfolio):
+
+    if portfolio.shape[0]:
+        df = pd.DataFrame({"assets": portfolio.iloc[-1]["assets"],
+                           "weights": portfolio.iloc[-1]["weights"]
+                           })
+        df = df[df["weights"] > 0]
+        fig = go.Figure(data=go.Pie(labels=df["assets"], values=df["weights"]))
+        fig_url = py.plot(fig, filename="portfolio_pie", auto_open=False, )
+        plot_html = tls.get_embed(fig_url)
+        print(fig_url)
         return plot_html
