@@ -84,6 +84,7 @@ class Stock(db.Model):
                 # TODO: This is really slow and computationally expensive
                 retrieved_tickers = stock_data.ticker.unique().tolist()
                 missing_tickers = [x for x in tickers if x not in retrieved_tickers]
+                print(f"Missing tickers from SQL. Retrieving {len(missing_tickers)} tickers from Tiingo... ")
                 tiingo_data = Stock.get_tiingo_data(missing_tickers, start_date, end_date, freq, metric_name=cols)
                 stock_data = stock_data.append(tiingo_data)
 
