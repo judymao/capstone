@@ -81,17 +81,17 @@ class Stock(db.Model):
                 # TODO: grouper was giving me errors
                 # stock_data = stock_data.groupby(pd.Grouper(freq=freq)).last().dropna()
 
-                # TODO: This is realyl slow and computationally expensive
-                # retrieved_tickers = stock_data.ticker.unique().tolist()
-                # missing_tickers = [x for x in tickers if x not in retrieved_tickers]
-                # tiingo_data = Stock.get_tiingo_data(missing_tickers, start_date, end_date, freq, metric_name=cols)
-                # stock_data = stock_data.append(tiingo_data)
+                # TODO: This is really slow and computationally expensive
+                retrieved_tickers = stock_data.ticker.unique().tolist()
+                missing_tickers = [x for x in tickers if x not in retrieved_tickers]
+                tiingo_data = Stock.get_tiingo_data(missing_tickers, start_date, end_date, freq, metric_name=cols)
+                stock_data = stock_data.append(tiingo_data)
 
         except Exception as e:
             # Commenting this out to avoid accidentally pulling a whole bunch of data from Tiingo
             print(f"Stock:get_data - Ran into Exception: {e}. Retrieving from Tiingo...")
-            # stock_data = Stock.get_tiingo_data(tickers, start_date, end_date, freq, metric_name=cols)
-            stock_data = pd.DataFrame({})
+            stock_data = Stock.get_tiingo_data(tickers, start_date, end_date, freq, metric_name=cols)
+            # stock_data = pd.DataFrame({})
 
         return stock_data
 
@@ -124,6 +124,8 @@ class Stock(db.Model):
                 data = data[tiingo_col].rename(columns=col_mapping)
                 data["ticker"] = ticker
                 data = data.reset_index()
+                data["id"] = data.index
+                data[["open", "close", "high", "low"]] = data[["open", "close", "high", "low"]].apply(lambda x: round(x, 5))
                 stock_data = stock_data.append(data)
 
             except tiingo.restclient.RestClientError:
