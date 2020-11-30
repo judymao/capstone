@@ -1,4 +1,4 @@
-from capstone_website import db, login_manager, client
+from capstone_website import db, login_manager, client, quandl_api
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 import tiingo
@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import numpy as np
+import quandl
 
 from capstone_website.src.constants import Constants
 from capstone_website.src.data import Data
@@ -74,17 +75,28 @@ class Stock(db.Model):
             if stock_data.shape[0]:
                 if cols is not None and isinstance(cols, list):
                     stock_data = stock_data[cols]
-                #TODO: grouper was giving me errors
+                # TODO: grouper was giving me errors
                 # stock_data = stock_data.groupby(pd.Grouper(freq=freq)).last().dropna()
+
+        except Exception as e:
+            print(f"Stock:get_data - Ran into Exception")
+            stock_data = pd.DataFrame({})
+
+        return stock_data
+
+    @staticmethod
+    def get_stock_data(tickers, start_date, end_date, freq="D", cols=None):
+        '''
+        Check if ticker already exists in database. If not, query Tiingo
+        '''
+
+        stock_data = Stock.get_data(tickers, start_date, end_date, freq, cols)
+        if stock_data.shape[0] != len(tickers):
 
             retrieved_tickers = stock_data.ticker.unique().tolist()
             missing_tickers = [x for x in tickers if x not in retrieved_tickers]
             tiingo_data = Stock.get_tiingo_data(missing_tickers, start_date, end_date, freq, metric_name=cols)
             stock_data = stock_data.append(tiingo_data)
-
-        except Exception as e:
-            print(f"Stock:get_data - Ran into Exception: {e}. Retrieving from Tiingo...")
-            stock_data = Stock.get_tiingo_data(tickers, start_date, end_date, freq, metric_name=cols)
 
         return stock_data
 
@@ -138,56 +150,23 @@ class Stock(db.Model):
 
 
     @staticmethod
-    def get_tiingo_data(tickers, start_date, end_date, freq="D", metric_name=None):
-
-        freq_mapping = {"D" : "daily",
-                        "M": "monthly"}
-
-        tiingo_col = ["adjOpen", "adjHigh", "adjLow", "adjClose", "adjVolume"]
-        col_mapping = {x: x.strip("adj").lower() for x in tiingo_col}
-
-        freq = "D" if freq not in freq_mapping.keys() else freq
-
-        stock_data = pd.DataFrame({})
-        for ticker in tickers:
-            try:
-                if metric_name is not None:
-                    data = client.get_dataframe(ticker,
-                                                metric_name=metric_name,
-                                                startDate=start_date,
-                                                endDate=end_date,
-                                                frequency=freq_mapping[freq])
-                else:
-                    data = client.get_dataframe(ticker,
-                                                startDate=start_date,
-                                                endDate=end_date,
-                                                frequency=freq_mapping[freq])
-
-                data = data[tiingo_col].rename(columns=col_mapping)
-                data["ticker"] = ticker
-                data = data.reset_index()
-                data["id"] = data.index
-                data[["open", "close", "high", "low"]] = data[["open", "close", "high", "low"]].apply(lambda x: round(x, 5))
-                stock_data = stock_data.append(data)
-
-            except tiingo.restclient.RestClientError:
-                print(f"Failed for ticker: {ticker}")
-
-        # Store retrieved stock data to the database
-        if stock_data.shape[0]:
-            # TODO: Grouper giving me issues
-            # stock_data = stock_data.groupby(pd.Grouper(freq=freq)).last().dropna()
-            stocks = [Stock(ticker=stock["ticker"], date=stock["date"],
-                            open=stock["open"], close=stock["close"],
-                            high=stock["high"], low=stock["low"]) for stock in stock_data.to_dict(orient="rows")]
-            db.session.add_all(stocks)
-            db.session.commit()
-
-        return stock_data
+    def get_stock_universe(start_date, end_date):
+        return Stock.get_stock_data(constants.STOCK_UNIVERSE, start_date, end_date)
 
     @staticmethod
-    def get_stock_universe(start_date=constants.START_DATE, end_date=constants.END_DATE):
-        return Stock.get_data(constants.STOCK_UNIVERSE, start_date, end_date)
+    def get_risk_free(start_date, end_date):
+        ten_year_df = Stock.get_data([constants.RF_RATE], start_date, end_date)
+        if not ten_year_df.shape[0]:
+            print(f"Risk free rate was not in database. Retrieving from Quandl...")
+            ten_year = quandl.get("USTREASURY/YIELD", authtoken=quandl_api)["10 YR"]
+            ten_year_df = pd.DataFrame(ten_year[(ten_year.index >= start_date) & (ten_year.index <= end_date)]).reset_index()
+            ten_year_df = ten_year_df.rename(columns={"Date": "date"})
+            ten_year_df["date"] = ten_year_df["date"].astype(object).apply(lambda x: x.date())
+            ten_year_df["10 YR"] = ten_year_df["10 YR"] / 100
+            stock = [Stock(ticker=constants.RF_RATE, date=stock["date"], close=stock["10 YR"]) for stock in ten_year_df.to_dict(orient="rows")]
+            db.session.add_all(stock)
+            db.session.commit()
+        return ten_year_df
 
 
 class PortfolioInfo(db.Model):
@@ -230,15 +209,13 @@ class PortfolioInfo(db.Model):
         price_data = Stock.get_stock_universe(constants.START_DATE, constants.END_DATE)
         price_data = price_data[~price_data["close"].isnull()]
 
-        print(price_data)
-        # TODO: Fix rfr
-        # rfr = Stock.get_data(constants.RF_RATE, constants.START_DATE, constants.END_DATE).set_index("date")[["close"]].rename(columns={"close": "risk_free"})
+        rfr = Stock.get_risk_free(constants.START_DATE, constants.END_DATE).set_index("date")[["close"]].rename(columns={"close": "risk_free"})
         # price_data = price_data[["date", "ticker", "close"]].pivot(index=price_data["date"], columns="ticker")["close"]
         price_data = price_data[["date", "ticker", "close"]].pivot(index="date", columns="ticker", values="close")
         original_shape = price_data.shape[0]
         price_data = price_data.dropna(thresh=1000, axis=1)
         print(f"Dropping {original_shape - price_data.shape[0]} entries, {price_data.shape[0]} left. {price_data.shape[1]} stocks")
-        rfr = pd.DataFrame({'risk_free': [0.01]*len(price_data.index)}, index = price_data.index)
+        # rfr = pd.DataFrame({'risk_free': [0.01]*len(price_data.index)}, index = price_data.index)
         data_set = Data(price_data, rfr)
         data_set.set_factor_returns()
 
