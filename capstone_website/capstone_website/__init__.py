@@ -65,6 +65,7 @@ tiingo_config['api_key'] = os.environ['TIINGO_API']  # StockConstants.API
 client = tiingo.TiingoClient(tiingo_config)
 
 quandl_api = os.environ["QUANDL_API"]
+alpha_vantage_api = os.environ["ALPHA_VAN_API"]
 
 from .main import main as main_blueprint
 app.register_blueprint(main_blueprint)

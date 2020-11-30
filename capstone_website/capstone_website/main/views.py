@@ -85,7 +85,8 @@ def portfolio_page(portfolio_name):
     curr_portfolio = portfolio_info.get_portfolio_instance(user_id=user.id, portfolio_name=portfolio_name)
 
     portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=curr_portfolio.id)
-    portfolio_graph = create_portfolio_graph(portfolio_data_df)
+    spy_df = Stock.get_spy(portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
+    portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, portfolio_name)
     portfolio_pie = create_portfolio_pie(portfolio_data_df)
 
     return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio,
@@ -213,15 +214,21 @@ def account():
 
 
 # Helper Function Below
-def create_portfolio_graph(portfolio):
+def create_portfolio_graph(portfolio, spy, portf_name):
     # print(portfolio)
     if portfolio.shape[0]:
         # Render a graph and return the URL
         # layout = go.Layout(yaxis=dict(tickformat=".2%"))
-        fig = go.Figure(data=go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value")) #, layout=layout)
+
+        spy["close"] = spy["close"] * portfolio.iloc[0]["value"] / spy.iloc[0]["close"]
+        spy = spy.sort_values(by="date").groupby("date").last().reset_index()
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value")) #, layout=layout)
+        fig.add_trace(go.Scatter(x=spy["date"], y=spy["close"], mode="lines", name="SPY")) #, layout=layout)
         fig.update_xaxes(title_text='Date')
         fig.update_yaxes(title_text='Portfolio Value')
-        portfolio_graph_url = py.plot(fig, filename="portfolio_graph", auto_open=False, )
+        portfolio_graph_url = py.plot(fig, filename=f"portfolio_value_{portf_name}", auto_open=False, )
         print(portfolio_graph_url)
         plot_html = tls.get_embed(portfolio_graph_url)
 

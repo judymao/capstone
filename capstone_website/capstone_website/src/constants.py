@@ -7,6 +7,7 @@ class Constants:
         self.START_DATE = date(2006, 11, 24)
         self.END_DATE = date(2020, 11, 24)
         self.RF_RATE = "RISK_FREE"
+        self.SPY = "SPY"
         self.STOCK_UNIVERSE = ['ETN',
                                  'AME',
                                  'AAL',

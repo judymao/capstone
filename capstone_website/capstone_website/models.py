@@ -1,12 +1,13 @@
-from capstone_website import db, login_manager, client, quandl_api
+from capstone_website import db, login_manager, client, quandl_api, alpha_vantage_api
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 import tiingo
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import numpy as np
 import quandl
+from alpha_vantage.timeseries import TimeSeries
 
 from capstone_website.src.constants import Constants
 from capstone_website.src.data import Data
@@ -75,6 +76,8 @@ class Stock(db.Model):
             if stock_data.shape[0]:
                 if cols is not None and isinstance(cols, list):
                     stock_data = stock_data[cols]
+                stock_data = stock_data[(stock_data["date"] >= start_date) & (stock_data["date"] <= end_date)]
+                stock_data = stock_data.groupby(["date", "ticker"]).last().reset_index()
                 # TODO: grouper was giving me errors
                 # stock_data = stock_data.groupby(pd.Grouper(freq=freq)).last().dropna()
 
@@ -91,7 +94,7 @@ class Stock(db.Model):
         '''
 
         stock_data = Stock.get_data(tickers, start_date, end_date, freq, cols)
-        if stock_data.shape[0] != len(tickers):
+        if len(stock_data["ticker"].unique()) != len(tickers):
 
             retrieved_tickers = stock_data.ticker.unique().tolist()
             missing_tickers = [x for x in tickers if x not in retrieved_tickers]
@@ -163,10 +166,30 @@ class Stock(db.Model):
             ten_year_df = ten_year_df.rename(columns={"Date": "date"})
             ten_year_df["date"] = ten_year_df["date"].astype(object).apply(lambda x: x.date())
             ten_year_df["10 YR"] = ten_year_df["10 YR"] / 100
-            stock = [Stock(ticker=constants.RF_RATE, date=stock["date"], close=stock["10 YR"]) for stock in ten_year_df.to_dict(orient="rows")]
+            ten_year_df["ticker"] = constants.RF_RATE
+            stock = [Stock(ticker=stock["ticker"], date=stock["date"], close=stock["10 YR"]) for stock in ten_year_df.to_dict(orient="rows")]
             db.session.add_all(stock)
             db.session.commit()
         return ten_year_df
+
+    @staticmethod
+    def get_spy(start_date, end_date):
+        spy_df = Stock.get_data([constants.SPY], start_date, end_date)
+        if not spy_df.shape[0]:
+            print(f"SPY was not in database. Retrieving from AlphaVantage...")
+            ts = TimeSeries(key=alpha_vantage_api, indexing_type='date')
+            spy_df = pd.DataFrame(ts.get_daily_adjusted(constants.SPY, outputsize="full")[0])
+            spy_df.index = pd.Series(spy_df.index).apply(lambda x: x.split(" ")[1])
+            spy_df = spy_df.transpose().reset_index().rename(columns={"index": "date"})
+            spy_df["date"] = spy_df["date"].apply(lambda x: datetime.strptime(x, "%Y-%m-%d").date())
+            spy_df = spy_df[(spy_df["date"] >= start_date) & (spy_df["date"] <= end_date)]
+            spy_df["ticker"] = constants.SPY
+            stock = [Stock(ticker=stock["ticker"], date=stock["date"], close=stock["close"],
+                           high=stock["high"], low=stock["low"], open=stock["open"]) for stock in
+                     spy_df.to_dict(orient="rows")]
+            db.session.add_all(stock)
+            db.session.commit()
+        return spy_df
 
 
 class PortfolioInfo(db.Model):
@@ -224,8 +247,8 @@ class PortfolioInfo(db.Model):
         port = Portfolio(data_set)
 
         # Set Up model
-        end_date = date.today()
-        start_date = end_date - relativedelta(years=3)
+        end_date = datetime(2020, 11, 27).date()
+        start_date = end_date - relativedelta(years=int(self.time_horizon))
 
         # TODO: These should probably be initialized in constants or smth?
         lookback = 10
