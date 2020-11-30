@@ -251,7 +251,7 @@ class PortfolioInfo(db.Model):
 
         # Set Up model
         end_date = datetime(2020, 11, 27).date()
-        start_date = end_date - relativedelta(years=int(self.time_horizon))
+        start_date = end_date - relativedelta(years=3)
 
         # TODO: These should probably be initialized in constants or smth?
         lookback = 10
