@@ -70,6 +70,7 @@ def dashboard():
     user = User.query.filter_by(user=current_user.user).first()
     portfolio_info = PortfolioInfo()
     portfolios = portfolio_info.get_portfolios(user_id=user.id)
+    portfolio_table = create_portfolio_summary(portfolios)
 
     return render_template('dashboard.html', portfolios=portfolios)
 
@@ -247,3 +248,16 @@ def create_portfolio_pie(portfolio):
         plot_html = tls.get_embed(fig_url)
         print(fig_url)
         return plot_html
+
+def create_portfolio_summary(portfolios):
+    portfolios_list = portfolios.all()
+
+    names, time_horizons, investments = [], [], []
+    for portfolio in portfolios_list:
+        names += [portfolio.name]
+        time_horizons += [portfolio.time_horizon]
+        investments += [portfolio.cash]
+
+    summary_df = pd.DataFrame({"Name": names, "Time_Horizon": time_horizons, "Investment": investments})
+
+    return summary_df.to_html().replace('<table border="1" class="dataframe">','<table class="table table-striped">')
