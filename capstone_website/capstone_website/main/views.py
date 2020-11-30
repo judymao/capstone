@@ -89,6 +89,7 @@ def portfolio_page(portfolio_name):
     spy_df = Stock.get_spy(portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
     portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, portfolio_name)
     portfolio_pie = create_portfolio_pie(portfolio_data_df)
+    portfolio_table = create_portfolio_table(portfolio_data_df, curr_portfolio)
 
     return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio,
                            portfolio_graph=portfolio_graph, pie_graph=portfolio_pie)
@@ -152,7 +153,6 @@ def new_general():
 
         # Generate a portfolio given the portfolio info
         #TODO: Rather than pulling from PostgreSQL again, is there a way to get the portfolio_id before storing portfolio_info?
-
 
         start = timer()
         # portfolio_info = PortfolioInfo.query.filter_by(user_id=user.id, name=form.portfolioName.data).first()
@@ -248,6 +248,14 @@ def create_portfolio_pie(portfolio):
         plot_html = tls.get_embed(fig_url)
         print(fig_url)
         return plot_html
+
+def create_portfolio_table(portfolio, portfolio_info):
+
+    if portfolio.shape[0]:
+        df = pd.DataFrame({"Returns": [portfolio_info.returns],
+                           "Volatility": [portfolio_info.volatility],
+                           "Sharpe Ratio": [portfolio_info.sharpe_ratio]}).transpose().reset_index().rename(columns={"index": "Metric", 0: "Value"})
+        return df.to_html().replace('<table border="1" class="dataframe">','<table class="table table-striped">')
 
 def create_portfolio_summary(portfolios):
     portfolios_list = portfolios.all()

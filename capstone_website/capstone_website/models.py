@@ -213,6 +213,9 @@ class PortfolioInfo(db.Model):
     cash = db.Column(db.Float)
     holding_constraint = db.Column(db.Float)
     trade_size_constraint = db.Column(db.Float)
+    returns = db.Column(db.Float)
+    volatility = db.Column(db.Float)
+    sharpe_ratio = db.Column(db.Float)
 
     def __repr__(self):
         return '<PortfolioInfo %r>' % self.id
@@ -275,7 +278,7 @@ class PortfolioInfo(db.Model):
         factor_model = FactorModel(lookahead, lookback, regress_weighting)
 
         back_test_ex = Backtest(start_date, end_date, lookback, lookahead)
-        back_test_ex.run(data_set, port, factor_model, opt_model, constr_model, cost_model, risk_model)
+        sharpe_ratio = back_test_ex.run(data_set, port, factor_model, opt_model, constr_model, cost_model, risk_model)
 
         cumu_returns = np.array([x + 1 for x in port.returns]).cumprod()
         portfolio = pd.DataFrame({"date": [start_date] + port.dates, "value": [self.cash] + (cumu_returns * self.cash).tolist(),
@@ -284,6 +287,10 @@ class PortfolioInfo(db.Model):
                                   })
         portfolio.loc[:, "user_id"] = self.user_id
         portfolio.loc[:, "portfolio_id"] = self.id
+
+        self.returns = cumu_returns[-1]
+        self.volatility = np.std(port.returns)
+        self.sharpe_ratio = sharpe_ratio
 
         return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
                               assets=p["assets"], weights=p["weights"],
