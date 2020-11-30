@@ -162,7 +162,10 @@ class Stock(db.Model):
         if not ten_year_df.shape[0]:
             print(f"Risk free rate was not in database. Retrieving from Quandl...")
             ten_year = quandl.get("USTREASURY/YIELD", authtoken=quandl_api)["10 YR"]
-            ten_year_df = pd.DataFrame(ten_year[(ten_year.index >= start_date) & (ten_year.index <= end_date)]).reset_index()
+            ten_year_df = pd.DataFrame(ten_year[(ten_year.index >=
+                                                 pd.to_datetime(start_date)) &
+                                                (ten_year.index <=
+                                                 pd.to_datetime(end_date))]).reset_index()
             ten_year_df = ten_year_df.rename(columns={"Date": "date"})
             ten_year_df["date"] = ten_year_df["date"].astype(object).apply(lambda x: x.date())
             ten_year_df["10 YR"] = ten_year_df["10 YR"] / 100
