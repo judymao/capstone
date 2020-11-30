@@ -20,3 +20,7 @@
     -o-background-size: cover;
     height: 100%;
 }
+
+.filler{
+    height: 50px;
+}
