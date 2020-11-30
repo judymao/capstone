@@ -90,7 +90,7 @@ def portfolio_page(portfolio_name):
     portfolio_pie = create_portfolio_pie(portfolio_data_df)
 
     return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio,
-                           portfolio_graph=portfolio_graph)
+                           portfolio_graph=portfolio_graph, pie_graph=portfolio_pie)
 
 
 @main.route('/portfolio/<portfolio_name>/delete', methods=["GET", "POST"])
