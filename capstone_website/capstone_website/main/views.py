@@ -72,7 +72,7 @@ def dashboard():
     portfolios = portfolio_info.get_portfolios(user_id=user.id)
     portfolio_table = create_portfolio_summary(portfolios)
 
-    return render_template('dashboard.html', portfolios=portfolios)
+    return render_template('dashboard.html', portfolios=portfolios, table=portfolio_table)
 
 
 @main.route('/portfolio/<portfolio_name>')
@@ -90,8 +90,11 @@ def portfolio_page(portfolio_name):
     portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, portfolio_name)
     portfolio_pie = create_portfolio_pie(portfolio_data_df)
 
+    # TO-DO: replace this with portfolio table
+    portfolio_table = create_portfolio_summary(portfolios)
+
     return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio,
-                           portfolio_graph=portfolio_graph, pie_graph=portfolio_pie)
+                           portfolio_graph=portfolio_graph, pie_graph=portfolio_pie, table=portfolio_table)
 
 
 @main.route('/portfolio/<portfolio_name>/delete', methods=["GET", "POST"])
@@ -255,9 +258,15 @@ def create_portfolio_summary(portfolios):
     names, time_horizons, investments = [], [], []
     for portfolio in portfolios_list:
         names += [portfolio.name]
-        time_horizons += [portfolio.time_horizon]
-        investments += [portfolio.cash]
+        time_horizons += [int(portfolio.time_horizon)]
+        investments += ['$' + str(portfolio.cash)]
 
-    summary_df = pd.DataFrame({"Name": names, "Time_Horizon": time_horizons, "Investment": investments})
+    summary_df = pd.DataFrame({"Portfolio Name": names, "Time Horizon (Years)": time_horizons,
+                               "Initial Investment Amount": investments})
+    summary_html = summary_df.to_html(index=False).replace('<table border="1" class="dataframe">',
+                                                           '<table class="table">')
+    summary_html = summary_html.replace("text-align: right;", "text-align: left;")
+    summary_html = summary_html.replace('<thead>', '<thead class="thead-dark">')
 
-    return summary_df.to_html().replace('<table border="1" class="dataframe">','<table class="table table-striped">')
+    print(summary_html)
+    return summary_html
