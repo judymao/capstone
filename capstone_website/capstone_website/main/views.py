@@ -92,7 +92,7 @@ def portfolio_page(portfolio_name):
     portfolio_table = create_portfolio_table(portfolio_data_df, curr_portfolio)
 
     # TO-DO: replace this with portfolio table
-    portfolio_table = create_portfolio_summary(portfolios)
+    # portfolio_table = create_portfolio_summary(portfolios)
 
     return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio,
                            portfolio_graph=portfolio_graph, pie_graph=portfolio_pie, table=portfolio_table)
@@ -258,21 +258,29 @@ def create_portfolio_table(portfolio, portfolio_info):
         df = pd.DataFrame({"Returns": [portfolio_info.returns],
                            "Volatility": [portfolio_info.volatility],
                            "Sharpe Ratio": [portfolio_info.sharpe_ratio]}).transpose().reset_index().rename(columns={"index": "Metric", 0: "Value"})
-        return df.to_html().replace('<table border="1" class="dataframe">','<table class="table table-striped">')
+        table_html = df.to_html(index=False).replace('<table border="1" class="dataframe">',
+                                                           '<table class="table">')
+        table_html = table_html.replace("text-align: right;", "text-align: left;")
+        table_html = table_html.replace('<thead>', '<thead class="thead-dark">')
+        print(table_html)
+        return table_html
 
 def create_portfolio_summary(portfolios):
     portfolios_list = portfolios.all()
 
-    names, time_horizons, investments = [], [], []
+    names, time_horizons, investments, returns, curr_values = [], [], [], [], []
     for portfolio in portfolios_list:
         names += [portfolio.name]
         time_horizons += [int(portfolio.time_horizon)]
         investments += ['$' + str(portfolio.cash)]
-
-        # @MARY: Can we get "Final Portfolio Value" and "Return"? basically getting the last value from our portfolio data?
+        returns += [f"{portfolio.returns:,.2%}" if portfolio.returns is not None else "NA"]
+        curr_values += [f"${((1 + portfolio.returns) * portfolio.cash):,.2f}" if portfolio.returns is not None else "NA"]
 
     summary_df = pd.DataFrame({"Portfolio Name": names, "Time Horizon (Years)": time_horizons,
-                               "Initial Investment Amount": investments})
+                               "Initial Investment Amount": investments,
+                               "Current Portfolio Value": curr_values,
+                               "Return": returns
+                               })
     summary_html = summary_df.to_html(index=False).replace('<table border="1" class="dataframe">',
                                                            '<table class="table">')
     summary_html = summary_html.replace("text-align: right;", "text-align: left;")
