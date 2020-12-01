@@ -37,3 +37,8 @@
 .sidebar .nav-item {
   width: 100%;
 }
+
+.alert{
+    margin-left: 400px;
+    width: 50%;
+}

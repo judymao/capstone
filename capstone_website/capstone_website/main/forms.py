@@ -68,12 +68,7 @@ class RiskForm(FlaskForm):
 
 class PortfolioForm(FlaskForm):
     portfolioName = StringField('What would you like to name this portfolio?', validators=[DataRequired(),
-                                                                                           Length(min=4, max=18),
-                                                                                           Regexp(
-                                                                                               '^[A-Za-z][A-Za-z0-9_.]*$',
-                                                                                               0,
-                                                                                               'Names must have only letters, numbers, dots or '
-                                                                                               'underscores')])
+                                                                                           Length(min=4, max=18)])
 
     cash = IntegerField('How much are you willing to invest into this portfolio? Please enter a whole number.'
                         , validators=[DataRequired()])

@@ -261,6 +261,8 @@ def create_portfolio_summary(portfolios):
         time_horizons += [int(portfolio.time_horizon)]
         investments += ['$' + str(portfolio.cash)]
 
+        # @MARY: Can we get "Final Portfolio Value" and "Return"? basically getting the last value from our portfolio data?
+
     summary_df = pd.DataFrame({"Portfolio Name": names, "Time Horizon (Years)": time_horizons,
                                "Initial Investment Amount": investments})
     summary_html = summary_df.to_html(index=False).replace('<table border="1" class="dataframe">',
