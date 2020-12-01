@@ -21,7 +21,7 @@
 <body {% block body_attr %}{% endblock %}>
 <!-- Your page content -->
 {% block navbar %}
-    <nav class="navbar fixed-top navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
         <a class="navbar-brand" href="{{ url_for('main.index') }}">RoboAdvisor</a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavDropdown"
                 aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,10 +56,10 @@
                     </li>
                 {% else %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+                        <span class="glyphicon glyphicon-user"></span><a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
+                        <span class="glyphicon glyphicon-log-in"></span><a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
                     </li>
                 {% endif %}
 
@@ -72,15 +72,15 @@
 {% block flash %}
     <div class="container">
         {% for message in get_flashed_messages() %}
-            <div class="alert alert-warning">
+            <div class="alert alert-info" role="alert">
                 <button type="button" class="close" data-dismiss="alert">&times;</button>
                 {{ message }}
             </div>
         {% endfor %}
     </div>
 {% endblock %}
-
 {% block content %}{% endblock %}
+
 
 {% block scripts %}
     <!-- Bootstrap core JavaScript -->
