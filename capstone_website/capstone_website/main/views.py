@@ -255,9 +255,10 @@ def create_portfolio_pie(portfolio):
 def create_portfolio_table(portfolio, portfolio_info):
 
     if portfolio.shape[0]:
-        df = pd.DataFrame({"Returns": [portfolio_info.returns],
-                           "Volatility": [portfolio_info.volatility],
-                           "Sharpe Ratio": [portfolio_info.sharpe_ratio]}).transpose().reset_index().rename(columns={"index": "Metric", 0: "Value"})
+        df = pd.DataFrame({"Returns": [f"{portfolio.returns:,.2%}" if portfolio.returns is not None else "NA"],
+                           "Volatility": [f"{portfolio_info.volatility:,.2%}" if portfolio.volatility is not None else "NA"],
+                           "Sharpe Ratio": [f"{portfolio_info.sharpe_ratio:,.2f}" if portfolio.sharpe_ratio is not None else "NA"]
+                           }).transpose().reset_index().rename(columns={"index": "Metric", 0: "Value"})
         table_html = df.to_html(index=False).replace('<table border="1" class="dataframe">',
                                                            '<table class="table">')
         table_html = table_html.replace("text-align: right;", "text-align: left;")
