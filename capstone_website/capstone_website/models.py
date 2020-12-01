@@ -288,7 +288,7 @@ class PortfolioInfo(db.Model):
         portfolio.loc[:, "user_id"] = self.user_id
         portfolio.loc[:, "portfolio_id"] = self.id
 
-        self.returns = cumu_returns[-1]
+        self.returns = cumu_returns[-1] - 1
         self.volatility = np.std(port.returns)
         self.sharpe_ratio = sharpe_ratio
 
