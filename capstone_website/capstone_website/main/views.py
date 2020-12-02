@@ -5,7 +5,6 @@ from . import main
 from .forms import ContactForm, RiskForm, PortfolioForm, ResetForm, Reset2Form, DeletePortfolio, UpdateForm
 from ..models import User, PortfolioInfo, PortfolioData, Stock
 from capstone_website import db, mail, app
-from datetime import date
 from timeit import default_timer as timer
 from capstone_website.src.constants import Constants
 
@@ -13,7 +12,6 @@ import chart_studio.plotly as py
 import chart_studio.tools as tls
 import plotly.graph_objects as go
 import pandas as pd
-import numpy as np
 
 from chart_studio.exceptions import PlotlyRequestError
 
