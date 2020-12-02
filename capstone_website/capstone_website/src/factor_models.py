@@ -11,11 +11,11 @@ from sklearn.pipeline import make_pipeline
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.preprocessing import StandardScaler
 
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.layers import LSTM
-from keras.layers import RepeatVector
-from keras.layers import TimeDistributed
+# from keras.models import Sequential
+# from keras.layers import Dense
+# from keras.layers import LSTM
+# from keras.layers import RepeatVector
+# from keras.layers import TimeDistributed
 
 
 
@@ -187,106 +187,106 @@ class FactorModel:
 
         return mu_arr, Q_arr
 
-    def get_mu_LSTM(self, rebal_date, data):
-        returns_data = data.stock_returns
-        factor_data = data.factor_returns
-
-        lookahead = self.lookahead
-        lookback = self.lookback
-        regress_weighting = self.regress_weighting
-
-        returns_data = data.get_lookback_data(returns_data, rebal_date, lookback)
-        factor_data = data.get_lookback_data(factor_data, rebal_date, lookback)
-
-        tempx, tempy = self.generate_X_y(factor_data.values, returns_data.values, lookback, lookahead)
-        train_x, test_x, train_y, test_y = self.traintest_split(tempx, tempy)
-
-        # scale inputs
-        scaled_train_x = (train_x - train_x.min()) / (train_x.max() - train_x.min())
-        scaled_test_x = (test_x - test_x.min()) / (test_x.max() - test_x.min())
-        scaled_train_y = (train_y - train_y.min()) / (train_y.max() - train_y.min())
-        scaled_test_y = (test_y - test_y.min()) / (test_y.max() - test_y.min())
-
-        mu = self.get_prediction(train_x, train_y, factor_data, lookback)
-        return mu
-
-    def generate_X_y(self, factor_data, returns_data, n_lookback, n_lookforward):
-        X, y = list(), list()
-        in_start = 0
-        for i in range(len(factor_data)):
-            in_end = in_start + n_lookback
-            out_end = in_end + n_lookforward
-            # ensure we have enough data for this instance
-            if out_end <= len(factor_data):
-                X.append(factor_data[in_start:in_end, :])
-                y.append(returns_data[in_end:out_end, :])
-            in_start += 1
-        return np.array(X), np.array(y)
-
-    def traintest_split(self, X, y):
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        return X_train, X_test, y_train, y_test
-
-    def build_model(self, train_x, train_y):
-        # define parameters
-        verbose, epochs, batch_size = 0, 50, 16
-        n_timesteps, n_features, n_outputs = train_x.shape[1], train_x.shape[2], train_y.shape[1]
-
-        # define model
-        model = Sequential()
-        model.add(LSTM(200, activation='relu', input_shape=(n_timesteps, n_features)))
-        model.add(RepeatVector(n_outputs))
-        model.add(LSTM(200, activation='relu', return_sequences=True))
-        model.add(TimeDistributed(Dense(100, activation='relu')))
-        model.add(TimeDistributed(Dense(train_y.shape[2])))
-        model.compile(loss='mse', optimizer='adam')
-        # fit network
-        model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=verbose)
-        return model
-
-    def forecast(self, model, history, n_lookback):
-        # flatten data
-        data = np.array(history)
-        data = data.reshape((data.shape[0] * data.shape[1], data.shape[2]))
-        # retrieve last observations for lookback data
-        input_x = data[-n_lookback:, :]
-        # reshape into [1, n_lookback, n]
-        input_x = input_x.reshape((1, input_x.shape[0], input_x.shape[1]))
-        # forecast the next set
-        yhat = model.predict(input_x, verbose=0)
-        # we only want the vector forecast
-        yhat = yhat[0]
-        return yhat
-
-    def evaluate_forecasts(self, actual, predicted):
-        # calculate overall RMSE
-        s = 0
-        for row in range(actual.shape[0]):
-            for col in range(actual.shape[1]):
-                for k in range(actual.shape[2]):
-                    s += (actual[row, col, k] - predicted[row, col, k]) ** 2
-        score = np.sqrt(s / (actual.shape[0] * actual.shape[1] * actual.shape[2]))
-        return score
-
-    def evaluate_model(self, train_x, train_y, test_x, test_y, n_lookback):
-        # fit model
-        model = self.build_model(train_x, train_y)
-        history = [x for x in train_x]
-        # walk-forward validation
-        predictions = list()
-        for i in range(len(test_x)):
-            yhat_sequence = self.forecast(model, history, n_lookback)
-            # store the predictions
-            predictions.append(yhat_sequence)
-            # get real observation and add to history for predicting the next set
-            history.append(test_x[i, :])
-        # evaluate predictions
-        predictions = np.array(predictions)
-        score = self.evaluate_forecasts(test_y, predictions)
-        # plt.plot(model.history.history['loss'])
-        # plt.plot(model.history.history['val_loss'])
-        return score
-
-    def get_prediction(self, train_x, train_y, factor_data, lookback):
-        model = self.build_model(train_x, train_y)
-        return self.forecast(model, factor_data.tail(lookback), lookback)
+    # def get_mu_LSTM(self, rebal_date, data):
+    #     returns_data = data.stock_returns
+    #     factor_data = data.factor_returns
+    #
+    #     lookahead = self.lookahead
+    #     lookback = self.lookback
+    #     regress_weighting = self.regress_weighting
+    #
+    #     returns_data = data.get_lookback_data(returns_data, rebal_date, lookback)
+    #     factor_data = data.get_lookback_data(factor_data, rebal_date, lookback)
+    #
+    #     tempx, tempy = self.generate_X_y(factor_data.values, returns_data.values, lookback, lookahead)
+    #     train_x, test_x, train_y, test_y = self.traintest_split(tempx, tempy)
+    #
+    #     # scale inputs
+    #     scaled_train_x = (train_x - train_x.min()) / (train_x.max() - train_x.min())
+    #     scaled_test_x = (test_x - test_x.min()) / (test_x.max() - test_x.min())
+    #     scaled_train_y = (train_y - train_y.min()) / (train_y.max() - train_y.min())
+    #     scaled_test_y = (test_y - test_y.min()) / (test_y.max() - test_y.min())
+    #
+    #     mu = self.get_prediction(train_x, train_y, factor_data, lookback)
+    #     return mu
+    #
+    # def generate_X_y(self, factor_data, returns_data, n_lookback, n_lookforward):
+    #     X, y = list(), list()
+    #     in_start = 0
+    #     for i in range(len(factor_data)):
+    #         in_end = in_start + n_lookback
+    #         out_end = in_end + n_lookforward
+    #         # ensure we have enough data for this instance
+    #         if out_end <= len(factor_data):
+    #             X.append(factor_data[in_start:in_end, :])
+    #             y.append(returns_data[in_end:out_end, :])
+    #         in_start += 1
+    #     return np.array(X), np.array(y)
+    #
+    # def traintest_split(self, X, y):
+    #     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    #     return X_train, X_test, y_train, y_test
+    #
+    # def build_model(self, train_x, train_y):
+    #     # define parameters
+    #     verbose, epochs, batch_size = 0, 50, 16
+    #     n_timesteps, n_features, n_outputs = train_x.shape[1], train_x.shape[2], train_y.shape[1]
+    #
+    #     # define model
+    #     model = Sequential()
+    #     model.add(LSTM(200, activation='relu', input_shape=(n_timesteps, n_features)))
+    #     model.add(RepeatVector(n_outputs))
+    #     model.add(LSTM(200, activation='relu', return_sequences=True))
+    #     model.add(TimeDistributed(Dense(100, activation='relu')))
+    #     model.add(TimeDistributed(Dense(train_y.shape[2])))
+    #     model.compile(loss='mse', optimizer='adam')
+    #     # fit network
+    #     model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=verbose)
+    #     return model
+    #
+    # def forecast(self, model, history, n_lookback):
+    #     # flatten data
+    #     data = np.array(history)
+    #     data = data.reshape((data.shape[0] * data.shape[1], data.shape[2]))
+    #     # retrieve last observations for lookback data
+    #     input_x = data[-n_lookback:, :]
+    #     # reshape into [1, n_lookback, n]
+    #     input_x = input_x.reshape((1, input_x.shape[0], input_x.shape[1]))
+    #     # forecast the next set
+    #     yhat = model.predict(input_x, verbose=0)
+    #     # we only want the vector forecast
+    #     yhat = yhat[0]
+    #     return yhat
+    #
+    # def evaluate_forecasts(self, actual, predicted):
+    #     # calculate overall RMSE
+    #     s = 0
+    #     for row in range(actual.shape[0]):
+    #         for col in range(actual.shape[1]):
+    #             for k in range(actual.shape[2]):
+    #                 s += (actual[row, col, k] - predicted[row, col, k]) ** 2
+    #     score = np.sqrt(s / (actual.shape[0] * actual.shape[1] * actual.shape[2]))
+    #     return score
+    #
+    # def evaluate_model(self, train_x, train_y, test_x, test_y, n_lookback):
+    #     # fit model
+    #     model = self.build_model(train_x, train_y)
+    #     history = [x for x in train_x]
+    #     # walk-forward validation
+    #     predictions = list()
+    #     for i in range(len(test_x)):
+    #         yhat_sequence = self.forecast(model, history, n_lookback)
+    #         # store the predictions
+    #         predictions.append(yhat_sequence)
+    #         # get real observation and add to history for predicting the next set
+    #         history.append(test_x[i, :])
+    #     # evaluate predictions
+    #     predictions = np.array(predictions)
+    #     score = self.evaluate_forecasts(test_y, predictions)
+    #     # plt.plot(model.history.history['loss'])
+    #     # plt.plot(model.history.history['val_loss'])
+    #     return score
+    #
+    # def get_prediction(self, train_x, train_y, factor_data, lookback):
+    #     model = self.build_model(train_x, train_y)
+    #     return self.forecast(model, factor_data.tail(lookback), lookback)
