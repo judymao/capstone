@@ -89,6 +89,7 @@ testpath==0.4.4
 threadpoolctl==2.1.0
 tiingo==0.12.0
 typing-extensions==3.7.4.3
+urllib3==1.25.11
 visitor==0.1.3
 webencodings==0.5.1
 Werkzeug==1.0.1
