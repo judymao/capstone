@@ -4,7 +4,7 @@ from flask_mail import Message
 from . import main
 from .forms import ContactForm, RiskForm, PortfolioForm, ResetForm, Reset2Form, DeletePortfolio, UpdateForm
 from ..models import User, PortfolioInfo, PortfolioData, Stock
-from capstone_website import db, mail, app
+from capstone_website import db, mail, app, clean
 from timeit import default_timer as timer
 from capstone_website.src.constants import Constants
 
@@ -188,6 +188,9 @@ def new_general():
 @main.route('/account', methods=["GET", "POST"])
 @login_required
 def account():
+
+    clean()
+
     # Get the user details
     user = User.query.filter_by(user=current_user.user).first()
 
