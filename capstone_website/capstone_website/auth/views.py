@@ -8,6 +8,10 @@ from capstone_website import db
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        flash("You are already signed in!")
+        return redirect(url_for('main.index'))
+    
     form = LoginForm()
     next_page = request.args.get('next')
     if form.validate_on_submit() and request.method == 'POST':
@@ -18,6 +22,8 @@ def login():
         login_user(user)
         if next_page is None or not next_page.startswith('/'):
             next_page = url_for('main.dashboard')
+
+        flash('Successfully logged in!')
         return redirect(next_page)
     return render_template('auth/login.html', title="Login", form=form)
 
