@@ -74,9 +74,19 @@
                     btn-dark" href="{{ url_for('main.delete_portfolio', portfolio_name=curr_portfolio.name) }}"
                     role="button">Delete Portfolio</a>
                 </div>
-
-                <div class="graph">
+                <div class="row" style="margin-left:5px; max-height:50%;">
+                    <h5>Portfolio Value Over Time </h5>
                     {{ portfolio_graph | safe }}
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Portfolio Composition </h5>
+                        {{ pie_graph | safe }}
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Portfolio Metrics </h5>
+                        {{ table | safe }}
+                    </div>
                 </div>
 
             </main>

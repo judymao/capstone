@@ -6,12 +6,16 @@ from .forms import ContactForm, RiskForm, PortfolioForm, ResetForm, Reset2Form, 
 from ..models import User, PortfolioInfo, PortfolioData, Stock
 from capstone_website import db, mail, app
 from datetime import date
+from timeit import default_timer as timer
+from capstone_website.src.constants import Constants
 
 import chart_studio.plotly as py
 import chart_studio.tools as tls
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
+
+from chart_studio.exceptions import PlotlyRequestError
 
 @main.route('/')
 def index():
@@ -69,13 +73,16 @@ def dashboard():
     user = User.query.filter_by(user=current_user.user).first()
     portfolio_info = PortfolioInfo()
     portfolios = portfolio_info.get_portfolios(user_id=user.id)
+    portfolio_table = create_portfolio_summary(portfolios)
 
-    return render_template('dashboard.html', portfolios=portfolios)
+    return render_template('dashboard.html', portfolios=portfolios, table=portfolio_table)
 
 
 @main.route('/portfolio/<portfolio_name>')
 @login_required
 def portfolio_page(portfolio_name):
+
+    constants = Constants()
 
     user = User.query.filter_by(user=current_user.user).first()
     portfolio_info = PortfolioInfo()
@@ -84,10 +91,16 @@ def portfolio_page(portfolio_name):
     curr_portfolio = portfolio_info.get_portfolio_instance(user_id=user.id, portfolio_name=portfolio_name)
 
     portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=curr_portfolio.id)
-    portfolio_graph = create_portfolio_graph(portfolio_data_df)
+    spy_df = Stock.get_etf(constants.SPY, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
+    portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, portfolio_name)
+    portfolio_pie = create_portfolio_pie(portfolio_data_df)
+    portfolio_table = create_portfolio_table(portfolio_data_df, curr_portfolio)
+
+    # TO-DO: replace this with portfolio table
+    # portfolio_table = create_portfolio_summary(portfolios)
 
     return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio,
-                           portfolio_graph=portfolio_graph)
+                           portfolio_graph=portfolio_graph, pie_graph=portfolio_pie, table=portfolio_table)
 
 
 @main.route('/portfolio/<portfolio_name>/delete', methods=["GET", "POST"])
@@ -98,9 +111,10 @@ def delete_portfolio(portfolio_name):
     curr_portfolio = PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).first()
 
     if form.validate_on_submit() and request.method == 'POST':
+        PortfolioData.query.filter_by(user_id=user.id, portfolio_id=curr_portfolio.id).delete()
         PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).delete()
         db.session.commit()
-        flash('Portfolio '+ portfolio_name+ ' deleted!')
+        flash('Portfolio ' + portfolio_name + ' deleted!')
 
         portfolios = PortfolioInfo.query.filter_by(user_id=user.id)
         return redirect(url_for('main.dashboard', portfolios=portfolios))
@@ -148,10 +162,12 @@ def new_general():
         # Generate a portfolio given the portfolio info
         #TODO: Rather than pulling from PostgreSQL again, is there a way to get the portfolio_id before storing portfolio_info?
 
+        start = timer()
         # portfolio_info = PortfolioInfo.query.filter_by(user_id=user.id, name=form.portfolioName.data).first()
         portfolio_info = portfolio.get_portfolio_instance(user_id=user.id, portfolio_name=form.portfolioName.data)
         portfolio_data = portfolio_info.create_portfolio()
-
+        end = timer()
+        print(f"Creating portfolio took: {end - start} seconds")
 
         # Save portfolio data into the database
         db.session.add_all(portfolio_data)
@@ -207,16 +223,87 @@ def account():
 
 
 # Helper Function Below
-def create_portfolio_graph(portfolio):
-    print(portfolio)
+def create_portfolio_graph(portfolio, spy, portf_name):
+    # print(portfolio)
     if portfolio.shape[0]:
         # Render a graph and return the URL
-        layout = go.Layout(yaxis=dict(tickformat=".2%"))
-        fig = go.Figure(data=go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value"), layout=layout)
+        # layout = go.Layout(yaxis=dict(tickformat=".2%"))
+
+        spy["close"] = spy["close"] * portfolio.iloc[0]["value"] / spy.iloc[0]["close"]
+        spy = spy.sort_values(by="date").groupby("date").last().reset_index()
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value")) #, layout=layout)
+        fig.add_trace(go.Scatter(x=spy["date"], y=spy["close"], mode="lines", name="SPY")) #, layout=layout)
         fig.update_xaxes(title_text='Date')
         fig.update_yaxes(title_text='Portfolio Value')
-        portfolio_graph_url = py.plot(fig, filename="portfolio_graph", auto_open=False, )
+        portfolio_graph_url = get_portfolio_graph_url(fig)
+        while portfolio_graph_url is None:
+            portfolio_graph_url = get_portfolio_graph_url(fig)
         print(portfolio_graph_url)
         plot_html = tls.get_embed(portfolio_graph_url)
 
         return plot_html
+
+
+def get_portfolio_graph_url(fig, name=1):
+    portfolio_graph_url = None
+    while portfolio_graph_url is None:
+        try:
+            portfolio_graph_url = py.plot(fig, filename=f"portfolio_value_{name}", auto_open=False, )
+        except PlotlyRequestError:
+            print(f"Ran into PlotlyRequestError. Trying new filename")
+            name += 1
+    return portfolio_graph_url
+
+
+def create_portfolio_pie(portfolio):
+
+    if portfolio.shape[0]:
+        df = pd.DataFrame({"assets": portfolio.iloc[-1]["assets"],
+                           "weights": portfolio.iloc[-1]["weights"]
+                           })
+        df = df[df["weights"] > 0]
+        fig = go.Figure(data=go.Pie(labels=df["assets"], values=df["weights"]))
+        fig_url = py.plot(fig, filename="portfolio_pie", auto_open=False, )
+        plot_html = tls.get_embed(fig_url)
+        print(fig_url)
+        return plot_html
+
+def create_portfolio_table(portfolio, portfolio_info):
+
+    if portfolio.shape[0]:
+        df = pd.DataFrame({"Returns": [f"{portfolio_info.returns:,.2%}" if portfolio_info.returns is not None else "NA"],
+                           "Volatility": [f"{portfolio_info.volatility:,.2%}" if portfolio_info.volatility is not None else "NA"],
+                           "Sharpe Ratio": [f"{portfolio_info.sharpe_ratio:,.2f}" if portfolio_info.sharpe_ratio is not None else "NA"]
+                           }).transpose().reset_index().rename(columns={"index": "Metric", 0: "Value"})
+        table_html = df.to_html(index=False).replace('<table border="1" class="dataframe">',
+                                                           '<table class="table">')
+        table_html = table_html.replace("text-align: right;", "text-align: left;")
+        table_html = table_html.replace('<thead>', '<thead class="thead-dark">')
+        print(table_html)
+        return table_html
+
+def create_portfolio_summary(portfolios):
+    portfolios_list = portfolios.all()
+
+    names, time_horizons, investments, returns, curr_values = [], [], [], [], []
+    for portfolio in portfolios_list:
+        names += [portfolio.name]
+        time_horizons += [int(portfolio.time_horizon)]
+        investments += ['$' + str(portfolio.cash)]
+        returns += [f"{portfolio.returns:,.2%}" if portfolio.returns is not None else "NA"]
+        curr_values += [f"${((1 + portfolio.returns) * portfolio.cash):,.2f}" if portfolio.returns is not None else "NA"]
+
+    summary_df = pd.DataFrame({"Portfolio Name": names, "Time Horizon (Years)": time_horizons,
+                               "Initial Investment Amount": investments,
+                               "Current Portfolio Value": curr_values,
+                               "Return": returns
+                               })
+    summary_html = summary_df.to_html(index=False).replace('<table border="1" class="dataframe">',
+                                                           '<table class="table">')
+    summary_html = summary_html.replace("text-align: right;", "text-align: left;")
+    summary_html = summary_html.replace('<thead>', '<thead class="thead-dark">')
+
+    print(summary_html)
+    return summary_html
