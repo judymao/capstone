@@ -7,12 +7,15 @@ from ..models import User, PortfolioInfo, PortfolioData, Stock
 from capstone_website import db, mail, app
 from datetime import date
 from timeit import default_timer as timer
+from capstone_website.src.constants import Constants
 
 import chart_studio.plotly as py
 import chart_studio.tools as tls
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
+
+from chart_studio.exceptions import PlotlyRequestError
 
 @main.route('/')
 def index():
@@ -79,6 +82,8 @@ def dashboard():
 @login_required
 def portfolio_page(portfolio_name):
 
+    constants = Constants()
+
     user = User.query.filter_by(user=current_user.user).first()
     portfolio_info = PortfolioInfo()
     portfolio_data = PortfolioData()
@@ -86,7 +91,7 @@ def portfolio_page(portfolio_name):
     curr_portfolio = portfolio_info.get_portfolio_instance(user_id=user.id, portfolio_name=portfolio_name)
 
     portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=curr_portfolio.id)
-    spy_df = Stock.get_spy(portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
+    spy_df = Stock.get_etf(constants.SPY, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
     portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, portfolio_name)
     portfolio_pie = create_portfolio_pie(portfolio_data_df)
     portfolio_table = create_portfolio_table(portfolio_data_df, curr_portfolio)
@@ -232,11 +237,24 @@ def create_portfolio_graph(portfolio, spy, portf_name):
         fig.add_trace(go.Scatter(x=spy["date"], y=spy["close"], mode="lines", name="SPY")) #, layout=layout)
         fig.update_xaxes(title_text='Date')
         fig.update_yaxes(title_text='Portfolio Value')
-        portfolio_graph_url = py.plot(fig, filename=f"portfolio_value_{portf_name}", auto_open=False, )
+        portfolio_graph_url = get_portfolio_graph_url(fig)
+        while portfolio_graph_url is None:
+            portfolio_graph_url = get_portfolio_graph_url(fig)
         print(portfolio_graph_url)
         plot_html = tls.get_embed(portfolio_graph_url)
 
         return plot_html
+
+
+def get_portfolio_graph_url(fig, name=1):
+    portfolio_graph_url = None
+    while portfolio_graph_url is None:
+        try:
+            portfolio_graph_url = py.plot(fig, filename=f"portfolio_value_{name}", auto_open=False, )
+        except PlotlyRequestError:
+            print(f"Ran into PlotlyRequestError. Trying new filename")
+            name += 1
+    return portfolio_graph_url
 
 
 def create_portfolio_pie(portfolio):
@@ -255,9 +273,9 @@ def create_portfolio_pie(portfolio):
 def create_portfolio_table(portfolio, portfolio_info):
 
     if portfolio.shape[0]:
-        df = pd.DataFrame({"Returns": [f"{portfolio.returns:,.2%}" if portfolio.returns is not None else "NA"],
-                           "Volatility": [f"{portfolio_info.volatility:,.2%}" if portfolio.volatility is not None else "NA"],
-                           "Sharpe Ratio": [f"{portfolio_info.sharpe_ratio:,.2f}" if portfolio.sharpe_ratio is not None else "NA"]
+        df = pd.DataFrame({"Returns": [f"{portfolio_info.returns:,.2%}" if portfolio_info.returns is not None else "NA"],
+                           "Volatility": [f"{portfolio_info.volatility:,.2%}" if portfolio_info.volatility is not None else "NA"],
+                           "Sharpe Ratio": [f"{portfolio_info.sharpe_ratio:,.2f}" if portfolio_info.sharpe_ratio is not None else "NA"]
                            }).transpose().reset_index().rename(columns={"index": "Metric", 0: "Value"})
         table_html = df.to_html(index=False).replace('<table border="1" class="dataframe">',
                                                            '<table class="table">')

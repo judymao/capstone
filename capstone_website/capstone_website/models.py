@@ -106,6 +106,7 @@ class Stock(db.Model):
     @staticmethod
     def get_tiingo_data(tickers, start_date, end_date, freq="D", metric_name=None):
 
+        print(f"Getting data for {len(tickers)} tickers")
         freq_mapping = {"D" : "daily",
                         "M": "monthly"}
 
@@ -132,9 +133,10 @@ class Stock(db.Model):
                 data = data[tiingo_col].rename(columns=col_mapping)
                 data["ticker"] = ticker
                 data = data.reset_index()
-                data["id"] = data.index
+                # data["id"] = data.index
                 data[["open", "close", "high", "low"]] = data[["open", "close", "high", "low"]].apply(lambda x: round(x, 5))
                 stock_data = stock_data.append(data)
+                print(f"Retrieved Tiingo data for ticker {ticker} ... {data.shape[0]} entries")
 
             except tiingo.restclient.RestClientError:
                 print(f"Failed for ticker: {ticker}")
@@ -146,7 +148,9 @@ class Stock(db.Model):
             stocks = [Stock(ticker=stock["ticker"], date=stock["date"],
                             open=stock["open"], close=stock["close"],
                             high=stock["high"], low=stock["low"]) for stock in stock_data.to_dict(orient="rows")]
-            db.session.add_all(stocks)
+            print(f"Storing retrieved data for {len(stocks)} tickers into database...")
+            db.session.bulk_insert_mappings(Stock, stock_data.to_dict(orient="rows"))
+            # db.session.add_all(stocks)
             db.session.commit()
 
         return stock_data
@@ -172,21 +176,22 @@ class Stock(db.Model):
             ten_year_df["ticker"] = constants.RF_RATE
             stock = [Stock(ticker=stock["ticker"], date=stock["date"], close=stock["10 YR"]) for stock in ten_year_df.to_dict(orient="rows")]
             db.session.add_all(stock)
+            # db.session.bulk_insert_mappings(Stock, stock)
             db.session.commit()
         return ten_year_df
 
     @staticmethod
-    def get_spy(start_date, end_date):
-        spy_df = Stock.get_data([constants.SPY], start_date, end_date)
+    def get_etf(etf, start_date, end_date):
+        spy_df = Stock.get_data([etf], start_date, end_date)
         if not spy_df.shape[0]:
-            print(f"SPY was not in database. Retrieving from AlphaVantage...")
+            print(f"{etf} was not in database. Retrieving from AlphaVantage...")
             ts = TimeSeries(key=alpha_vantage_api, indexing_type='date')
-            spy_df = pd.DataFrame(ts.get_daily_adjusted(constants.SPY, outputsize="full")[0])
+            spy_df = pd.DataFrame(ts.get_daily_adjusted(etf, outputsize="full")[0])
             spy_df.index = pd.Series(spy_df.index).apply(lambda x: x.split(" ")[1])
             spy_df = spy_df.transpose().reset_index().rename(columns={"index": "date"})
             spy_df["date"] = spy_df["date"].apply(lambda x: datetime.strptime(x, "%Y-%m-%d").date())
             spy_df = spy_df[(spy_df["date"] >= start_date) & (spy_df["date"] <= end_date)]
-            spy_df["ticker"] = constants.SPY
+            spy_df["ticker"] = etf
             stock = [Stock(ticker=stock["ticker"], date=stock["date"], close=stock["close"],
                            high=stock["high"], low=stock["low"], open=stock["open"]) for stock in
                      spy_df.to_dict(orient="rows")]
