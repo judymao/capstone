@@ -15,7 +15,6 @@ import pandas as pd
 
 from chart_studio.exceptions import PlotlyRequestError
 
-from cleanup import clean
 
 @main.route('/')
 def index():
@@ -190,8 +189,6 @@ def new_general():
 @main.route('/account', methods=["GET", "POST"])
 @login_required
 def account():
-
-    clean()
 
     # Get the user details
     user = User.query.filter_by(user=current_user.user).first()
