@@ -110,7 +110,7 @@ def delete_portfolio(portfolio_name):
     curr_portfolio = PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).first()
 
     if form.validate_on_submit() and request.method == 'POST':
-        PortfolioData.query.filter_by(user_id=user.id, pofrtfolio_id=curr_portfolio.id).delete()
+        PortfolioData.query.filter_by(user_id=user.id, portfolio_id=curr_portfolio.id).delete()
         PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).delete()
         db.session.commit()
         flash('Portfolio ' + portfolio_name + ' deleted!')
@@ -274,8 +274,8 @@ def create_portfolio_pie(portfolio):
 def create_portfolio_table(portfolio, portfolio_info):
 
     if portfolio.shape[0]:
-        annualized_returns = (portfolio_info.returns + 1) ** (1 / 13) - 1 if portfolio_info.returns is not None else "NA"
-        annualized_vol = portfolio_info.volatility / np.sqrt(12) if portfolio_info.volatility is not None else "NA"
+        annualized_returns = (portfolio_info.returns + 1) ** (1 / portfolio_info.time_horizon) - 1 if portfolio_info.returns is not None else "NA"
+        annualized_vol = portfolio_info.volatility / np.sqrt(portfolio_info.time_horizon) if portfolio_info.volatility is not None else "NA"
         df = pd.DataFrame({
                             "Initial Value": [f"${portfolio_info.cash:,.2f}" if portfolio_info.cash is not None else "NA"],
                             "Current Value": [f"${(portfolio_info.returns + 1) * portfolio_info.cash:,.2f}" if portfolio_info.returns is not None else "NA"],
@@ -304,8 +304,8 @@ def create_portfolio_summary(portfolios):
         returns += [f"{portfolio.returns:,.2%}" if portfolio.returns is not None else "NA"]
         curr_values += [f"${((1 + portfolio.returns) * portfolio.cash):,.2f}" if portfolio.returns is not None else "NA"]
 
-        annualized_returns += [(portfolio.returns + 1) ** (1 / 13) - 1 if portfolio.returns is not None else "NA"]
-        annualized_vol += [portfolio.volatility / np.sqrt(12) if portfolio.volatility is not None else "NA"]
+        annualized_returns += [f"{((portfolio.returns + 1) ** (1 / portfolio.time_horizon) - 1):,.2%}" if portfolio.returns is not None else "NA"]
+        annualized_vol += [f"{(portfolio.volatility / np.sqrt(portfolio.time_horizon)):,.2%}" if portfolio.volatility is not None else "NA"]
 
         risk_appetites += [portfolio.risk_appetite if portfolio.risk_appetite is not None else "N/A"]
 
@@ -316,7 +316,7 @@ def create_portfolio_summary(portfolios):
                                "Current Portfolio Value": curr_values,
                                "Total Return": returns,
                                "Annualized Return": annualized_returns,
-                               "Annualized Volatility": annualized_returns,
+                               "Annualized Volatility": annualized_vol,
                                })
 
     summary_html = summary_df.to_html(index=False).replace('<table border="1" class="dataframe">',
