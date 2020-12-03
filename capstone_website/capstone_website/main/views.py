@@ -91,16 +91,17 @@ def portfolio_page(portfolio_name):
     curr_portfolio = portfolio_info.get_portfolio_instance(user_id=user.id, portfolio_name=portfolio_name)
 
     portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=curr_portfolio.id)
-    spy_df = Stock.get_etf(constants.SPY, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
-    portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, portfolio_name)
+    print("Portfolio graph prevous generated:", portfolio_name in session.keys())
+    if portfolio_name not in session.keys():
+        print("Saving html ...")
+        spy_df = Stock.get_etf(constants.SPY, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
+        portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, portfolio_name)
+        session[portfolio_name] = portfolio_graph
+
     portfolio_pie = create_portfolio_pie(portfolio_data_df)
     portfolio_table = create_portfolio_table(portfolio_data_df, curr_portfolio)
-
-    # TO-DO: replace this with portfolio table
-    # portfolio_table = create_portfolio_summary(portfolios)
-
     return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio,
-                           portfolio_graph=portfolio_graph, pie_graph=portfolio_pie, table=portfolio_table)
+                           portfolio_graph=session[portfolio_name], pie_graph=portfolio_pie, table=portfolio_table)
 
 
 @main.route('/portfolio/<portfolio_name>/delete', methods=["GET", "POST"])
@@ -321,7 +322,7 @@ def create_portfolio_summary(portfolios):
                                })
 
     summary_html = summary_df.to_html(index=False).replace('<table border="1" class="dataframe">',
-                                                           '<table class="table">')
+                                                           '<table class="table table-hover">')
     summary_html = summary_html.replace("text-align: right;", "text-align: left;")
     summary_html = summary_html.replace('<thead>', '<thead class="thead-dark">')
 

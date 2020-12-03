@@ -287,7 +287,8 @@ class PortfolioInfo(db.Model):
         baseline_portfolio = self.get_baseline_portfolios(self.risk_appetite)
 
         # If baseline exists, inherit values from this baseline portfolio
-        if baseline_portfolio.sharpe_ratio is not None:
+        # if baseline_portfolio.sharpe_ratio is not None:
+        if baseline_portfolio is not None:
                 print(f"Identified baseline portfolio for risk appetite: {self.risk_appetite}")
                 portfolio_data = PortfolioData()
                 baseline_portfolio_df = portfolio_data.get_portfolio_data_df(baseline_portfolio.user_id, baseline_portfolio.id)
