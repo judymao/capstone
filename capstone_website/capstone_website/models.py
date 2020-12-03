@@ -4,10 +4,12 @@ from flask_login import UserMixin
 import tiingo
 from datetime import date, timedelta, datetime
 from dateutil.relativedelta import relativedelta
+import dateutil
 import pandas as pd
 import numpy as np
 import quandl
 from alpha_vantage.timeseries import TimeSeries
+from scipy import stats
 
 from capstone_website.src.constants import Constants
 from capstone_website.src.data import Data
@@ -233,6 +235,10 @@ class PortfolioInfo(db.Model):
         portfolios = PortfolioInfo.query.filter_by(user_id=user_id)
         return portfolios
 
+    def get_baseline_portfolios(self, risk_appetite):
+        portfolio = self.query.filter_by(name="Baseline_" + risk_appetite).first()
+        return portfolio
+
 
     def create_portfolio(self):
 
@@ -255,7 +261,10 @@ class PortfolioInfo(db.Model):
 
         # Set up Static Variables
         end_date = "2020-11-26"
-        start_date = end_date - relativedelta(self.time_horizon)
+        # start_date = "2010-01-31"
+        string_date = datetime.strptime(end_date, "%Y-%m-%d")
+        string_date_minus = string_date - dateutil.relativedelta.relativedelta(years=self.time_horizon)
+        start_date = string_date_minus.strftime('%Y-%m-%d')
         lookback = 12
         lookahead = 1
 
@@ -275,29 +284,55 @@ class PortfolioInfo(db.Model):
             return_goal = high_risk_ret
             self.risk_appetite = "High"
 
+        baseline_portfolio = self.get_baseline_portfolios(self.risk_appetite)
 
-        regress_weighting = [0, 0, 0.25, 0.75]
-        factor_model = FactorModel(lookahead, lookback, regress_weighting)
+        # If baseline exists, inherit values from this baseline portfolio
+        if baseline_portfolio.sharpe_ratio is not None:
+                print(f"Identified baseline portfolio for risk appetite: {self.risk_appetite}")
+                portfolio_data = PortfolioData()
+                baseline_portfolio_df = portfolio_data.get_portfolio_data_df(baseline_portfolio.user_id, baseline_portfolio.id)
+                baseline_portfolio_df.loc[:, "user_id"] = self.user_id
+                baseline_portfolio_df.loc[:, "portfolio_id"] = self.id
+                portfolio = baseline_portfolio_df[baseline_portfolio_df["date"] > datetime.strptime(start_date, "%Y-%m-%d").date()]
+                portfolio["returns"] = portfolio["value"].pct_change()
 
-        live_test = Livetest(start_date, end_date)
-        sharpe_ratio = live_test.run(data, FF_data, port, return_goal, factor_model)
+                self.returns = (portfolio.iloc[-1]["value"] - portfolio.iloc[0]["value"]) / portfolio.iloc[0]["value"]
 
-        cumu_returns = np.array([x + 1 for x in port.returns]).cumprod()
-        portfolio = pd.DataFrame({"date": [start_date] + port.dates, "value": [self.cash] + (cumu_returns * self.cash).tolist(),
-                                  "assets": [price_data.columns.tolist() + ["RISK_FREE"] for _ in range(len(port.weights))],
-                                  "weights": [x.tolist() for x in port.weights]
-                                  })
-        portfolio.loc[:, "user_id"] = self.user_id
-        portfolio.loc[:, "portfolio_id"] = self.id
+                sigma = np.std(portfolio["returns"] - np.array(rfr["risk_free"].iloc[-1])) # this is not getting correct rate over time
+                sharpe_ratio = (stats.gmean(portfolio["returns"].dropna() - np.array(rfr["risk_free"].iloc[-1]) + 1, axis=0) - 1) / sigma
+                annual_sharpe = sharpe_ratio * (np.sqrt(12))
 
-        self.returns = cumu_returns[-1] - 1
-        self.volatility = np.std(port.returns) ** 2
-        self.sharpe_ratio = sharpe_ratio
+                self.volatility = sigma
+                self.sharpe_ratio = annual_sharpe
 
-        return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
-                              assets=p["assets"], weights=p["weights"],
-                              value=p['value']) for p in
-                portfolio.to_dict(orient="rows")]
+                return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
+                                      assets=p["assets"], weights=p["weights"],
+                                      value=p['value']) for p in
+                        portfolio.to_dict(orient="rows")]
+
+        else:
+            regress_weighting = [0, 0, 0.25, 0.75]
+            factor_model = FactorModel(lookahead, lookback, regress_weighting)
+
+            live_test = Livetest(start_date, end_date)
+            sharpe_ratio = live_test.run(data, FF_data, port, return_goal, factor_model)
+
+            cumu_returns = np.array([x + 1 for x in port.returns]).cumprod()
+            portfolio = pd.DataFrame({"date": [start_date] + port.dates, "value": [self.cash] + (cumu_returns * self.cash).tolist(),
+                                      "assets": [price_data.columns.tolist() + ["RISK_FREE"] for _ in range(len(port.weights))],
+                                      "weights": [x.tolist() for x in port.weights]
+                                      })
+            portfolio.loc[:, "user_id"] = self.user_id
+            portfolio.loc[:, "portfolio_id"] = self.id
+
+            self.returns = cumu_returns[-1] - 1
+            self.volatility = np.std(port.returns)
+            self.sharpe_ratio = sharpe_ratio
+
+            return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
+                                  assets=p["assets"], weights=p["weights"],
+                                  value=p['value']) for p in
+                    portfolio.to_dict(orient="rows")]
 
 
 class PortfolioData(db.Model):
@@ -317,7 +352,6 @@ class PortfolioData(db.Model):
         portfolio_data = self.query.filter_by(user_id=user_id, portfolio_id=portfolio_id)
         portfolio_data_df = pd.read_sql(portfolio_data.statement, db.session.bind)
         return portfolio_data_df
-
 
 db.create_all()  # Create tables in the db if they do not already exist
 
