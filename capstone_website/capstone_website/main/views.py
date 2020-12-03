@@ -91,17 +91,20 @@ def portfolio_page(portfolio_name):
     curr_portfolio = portfolio_info.get_portfolio_instance(user_id=user.id, portfolio_name=portfolio_name)
 
     portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=curr_portfolio.id)
-    print("Portfolio graph prevous generated:", portfolio_name in session.keys())
-    if portfolio_name not in session.keys():
+    print("Portfolio graph previously generated:", portfolio_name in session.keys())
+    print("Portfolio pie previously generated:", portfolio_name+'_pie' in session.keys())
+    if portfolio_name not in session.keys() or portfolio_name+'_pie' not in session.keys():
         print("Saving html ...")
         spy_df = Stock.get_etf(constants.SPY, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
         portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, portfolio_name)
         session[portfolio_name] = portfolio_graph
 
-    portfolio_pie = create_portfolio_pie(portfolio_data_df)
+        portfolio_pie = create_portfolio_pie(portfolio_data_df)
+        session[portfolio_name+'_pie'] = portfolio_pie
+
     portfolio_table = create_portfolio_table(portfolio_data_df, curr_portfolio)
     return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio,
-                           portfolio_graph=session[portfolio_name], pie_graph=portfolio_pie, table=portfolio_table)
+                           portfolio_graph=session[portfolio_name], pie_graph=session[portfolio_name+'_pie'], table=portfolio_table)
 
 
 @main.route('/portfolio/<portfolio_name>/delete', methods=["GET", "POST"])
@@ -173,6 +176,19 @@ def new_general():
         # Save portfolio data into the database
         db.session.add_all(portfolio_data)
         db.session.commit()
+
+        portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=portfolio_info.id)
+        print("Portfolio graph previously generated:", portfolio_info.name in session.keys())
+        print("Portfolio pie previously generated:", portfolio_info.name + '_pie' in session.keys())
+        if portfolio_info.name not in session.keys() or portfolio_info.name + '_pie' not in session.keys():
+            print("Saving html ...")
+            constants = Constants()
+            spy_df = Stock.get_etf(constants.SPY, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
+            portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, portfolio_info.name)
+            session[portfolio_info.name] = portfolio_graph
+
+            portfolio_pie = create_portfolio_pie(portfolio_data_df)
+            session[portfolio_info.name + '_pie'] = portfolio_pie
 
         # Remove the session variables
         session.pop('loss', None)
