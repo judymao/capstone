@@ -309,13 +309,14 @@ def create_portfolio_table(portfolio, portfolio_info):
     if portfolio.shape[0]:
         annualized_returns = (portfolio_info.returns + 1) ** (1 / portfolio_info.time_horizon) - 1 if portfolio_info.returns is not None else "NA"
         df = pd.DataFrame({
+                            "Time Horizon": [f"{portfolio_info.time_horizon}"] if portfolio_info.time_horizon is not None else "NA",
+                            "Risk Appetite": [f"{portfolio_info.risk_appetite}"] if portfolio_info.risk_appetite is not None else "NA",
                             "Initial Value": [f"${portfolio_info.cash:,.2f}" if portfolio_info.cash is not None else "NA"],
                             "Current Value": [f"${(portfolio_info.returns + 1) * portfolio_info.cash:,.2f}" if portfolio_info.returns is not None else "NA"],
                             "Returns": [f"{portfolio_info.returns:,.2%}" if portfolio_info.returns is not None else "NA"],
                             "Annualized Returns": [f"{annualized_returns:,.2%}" ],
                             "Annualized Volatility": [f"{portfolio_info.volatility:,.2%}" if portfolio_info.volatility is not None else "NA"],
                             "Sharpe Ratio": [f"{portfolio_info.sharpe_ratio:,.2f}" if portfolio_info.sharpe_ratio is not None else "NA"],
-                            "Risk Appetite": [f"{portfolio_info.risk_appetite}"] if portfolio_info.risk_appetite is not None else "NA"
                            }).transpose().reset_index().rename(columns={"index": "Metric", 0: "Value"})
         table_html = df.to_html(index=False).replace('<table border="1" class="dataframe">', '<table class="table table-hover">')
         table_html = table_html.replace("text-align: right;", "text-align: left;")
