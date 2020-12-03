@@ -1,1 +1,2 @@
+release: pwd
 web: gunicorn app:app
