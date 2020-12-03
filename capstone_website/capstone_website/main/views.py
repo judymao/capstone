@@ -169,14 +169,15 @@ def new_general():
         start = timer()
         # portfolio_info = PortfolioInfo.query.filter_by(user_id=user.id, name=form.portfolioName.data).first()
         portfolio_info = portfolio.get_portfolio_instance(user_id=user.id, portfolio_name=form.portfolioName.data)
-        portfolio_data = portfolio_info.create_portfolio()
+        portfolio_data_list = portfolio_info.create_portfolio()
         end = timer()
         print(f"Creating portfolio took: {end - start} seconds")
 
         # Save portfolio data into the database
-        db.session.add_all(portfolio_data)
+        db.session.add_all(portfolio_data_list)
         db.session.commit()
 
+        portfolio_data = PortfolioData()
         portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=portfolio_info.id)
         print("Portfolio graph previously generated:", portfolio_info.name in session.keys())
         print("Portfolio pie previously generated:", portfolio_info.name + '_pie' in session.keys())
