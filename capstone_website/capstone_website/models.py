@@ -11,10 +11,9 @@ from alpha_vantage.timeseries import TimeSeries
 
 from capstone_website.src.constants import Constants
 from capstone_website.src.data import Data
-from capstone_website.src.portfolio import Portfolio, Constraints, Costs, Risks
-from capstone_website.src.optimization import Model
+from capstone_website.src.portfolio import Portfolio
 from capstone_website.src.factor_models import FactorModel
-from capstone_website.src.backtest import Backtest
+from capstone_website.src.livetest import Livetest
 
 
 constants = Constants()
@@ -221,6 +220,7 @@ class PortfolioInfo(db.Model):
     returns = db.Column(db.Float)
     volatility = db.Column(db.Float)
     sharpe_ratio = db.Column(db.Float)
+    risk_appetite = db.Column(db.String(255))
 
     def __repr__(self):
         return '<PortfolioInfo %r>' % self.id
@@ -236,54 +236,51 @@ class PortfolioInfo(db.Model):
 
     def create_portfolio(self):
 
-        # TODO
-        # Get risk tolerance from user input
-
         # Iniitalize Data
         price_data = Stock.get_stock_universe(constants.START_DATE, constants.END_DATE)
         price_data = price_data[~price_data["close"].isnull()]
 
         rfr = Stock.get_risk_free(constants.START_DATE, constants.END_DATE).set_index("date")[["close"]].rename(columns={"close": "risk_free"})
-        # price_data = price_data[["date", "ticker", "close"]].pivot(index=price_data["date"], columns="ticker")["close"]
+        rfr["risk_free"] = (1 + (rfr["risk_free"])) ** (1 / 12) - 1
         price_data = price_data[["date", "ticker", "close"]].pivot(index="date", columns="ticker", values="close")
         original_shape = price_data.shape[0]
-        price_data = price_data.dropna(thresh=1000, axis=1)
+        price_data = price_data.dropna(thresh=3000, axis=1)
         print(f"Dropping {original_shape - price_data.shape[0]} entries, {price_data.shape[0]} left. {price_data.shape[1]} stocks")
-        # rfr = pd.DataFrame({'risk_free': [0.01]*len(price_data.index)}, index = price_data.index)
-        data_set = Data(price_data, rfr)
-        data_set.set_factor_returns()
 
-        # Initialize Portfolio
-        num_stocks = data_set.get_num_stocks()
-        port = Portfolio(data_set)
+        data = Data(price_data, rfr)
+        FF_data = Data(price_data, rfr, factor_type="FF")
 
-        # Set Up model
-        end_date = datetime(2020, 11, 27).date()
-        start_date = end_date - relativedelta(years=3)
+        # Set up Portfolio
+        port = Portfolio(data)
 
-        # TODO: These should probably be initialized in constants or smth?
-        lookback = 10
-        lookahead = 5
-        lam = 0.9
-        trans_coeff = 0
-        holding_coeff = 0
-        conf_level = 0.95
+        # Set up Static Variables
+        end_date = "2020-11-26"
+        start_date = end_date - relativedelta(self.time_horizon)
+        lookback = 12
+        lookahead = 1
 
-        # Define constraints to use
-        constr_list = ["no_short", "cardinality", "asset_limit_cardinality"]
-        constr_model = Constraints(constr_list)
+        # Map user survey to risk appetite
+        high_risk_ret = 0.15
+        medium_risk_ret = 0.10
+        low_risk_ret = 0.05
 
-        cost_model = Costs(trans_coeff, holding_coeff)
-        cost_model.replicate_cost_coeff(num_stocks, lookahead)
+        risk_appetite = (self.win_philosophy + self.lose_philosophy + self.games_philosophy + self.unknown_philosophy + self.job_philosophy + self.monitor_philosophy)
+        if risk_appetite < 4:
+            return_goal = low_risk_ret
+            self.risk_appetite = "Low"
+        elif risk_appetite < 9:
+            return_goal = medium_risk_ret
+            self.risk_appetite = "Medium"
+        else:
+            return_goal = high_risk_ret
+            self.risk_appetite = "High"
 
-        opt_model = Model(lam)
-        risk_model = Risks("MVO", conf_level)
 
-        regress_weighting = [0, 0.5, 0.5, 0]
+        regress_weighting = [0, 0, 0.25, 0.75]
         factor_model = FactorModel(lookahead, lookback, regress_weighting)
 
-        back_test_ex = Backtest(start_date, end_date, lookback, lookahead)
-        sharpe_ratio = back_test_ex.run(data_set, port, factor_model, opt_model, constr_model, cost_model, risk_model)
+        live_test = Livetest(start_date, end_date)
+        sharpe_ratio = live_test.run(data, FF_data, port, return_goal, factor_model)
 
         cumu_returns = np.array([x + 1 for x in port.returns]).cumprod()
         portfolio = pd.DataFrame({"date": [start_date] + port.dates, "value": [self.cash] + (cumu_returns * self.cash).tolist(),
@@ -294,7 +291,7 @@ class PortfolioInfo(db.Model):
         portfolio.loc[:, "portfolio_id"] = self.id
 
         self.returns = cumu_returns[-1] - 1
-        self.volatility = np.std(port.returns)
+        self.volatility = np.std(port.returns) ** 2
         self.sharpe_ratio = sharpe_ratio
 
         return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
