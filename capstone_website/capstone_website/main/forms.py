@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField, validators, ValidationError, \
     IntegerField, RadioField
-from wtforms.validators import DataRequired, Email, Length, Regexp
+from wtforms.validators import DataRequired, Email, Length, NumberRange
 from wtforms.widgets import TextArea
 from ..models import User, PortfolioInfo
 from flask_login import current_user
@@ -68,13 +68,13 @@ class RiskForm(FlaskForm):
 
 class PortfolioForm(FlaskForm):
     portfolioName = StringField('What would you like to name this portfolio?', validators=[DataRequired(),
-                                                                                           Length(min=4, max=18)])
+                                                                                           Length(min=4, max=50)])
 
     cash = IntegerField('How much are you willing to invest into this portfolio? Please enter a whole number.'
                         , validators=[DataRequired()])
 
     timeHorizon = IntegerField(label="How long do you intend to hold this portfolio for? Please enter your time "
-                                     "horizon in number of years.", validators=[DataRequired()])
+                                     "horizon in number of years.", validators=[DataRequired(), NumberRange(min=0, max=13)])
 
     def validate_portfolioName(self, field):
         user = User.query.filter_by(user=current_user.user).first()
