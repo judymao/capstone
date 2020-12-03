@@ -73,7 +73,7 @@ class Data:
         zip_file.extractall()
         zip_file.close()
         # ff_factors = pd.read_csv('F-F_Research_Data_Factors.csv', skiprows=3, index_col=0)
-        url = "https://raw.githubusercontent.com/judymao/capstone/master/capstone_website/capstone_website/src/F-F_Research_Data_Factors.CSV"
+        url = "https://raw.githubusercontent.com/judymao/capstone/master/capstone_website/F-F_Research_Data_Factors.CSV"
         ff_factors = pd.read_csv(url, skiprows=3, index_col=0)
         # Skip null rows
         ff_row = ff_factors.isnull().any(1).to_numpy().nonzero()[0][0]
