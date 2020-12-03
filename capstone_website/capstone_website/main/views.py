@@ -12,6 +12,7 @@ import chart_studio.plotly as py
 import chart_studio.tools as tls
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 
 from chart_studio.exceptions import PlotlyRequestError
 
@@ -232,8 +233,9 @@ def create_portfolio_graph(portfolio, spy, portf_name):
         spy = spy.sort_values(by="date").groupby("date").last().reset_index()
 
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value")) #, layout=layout)
-        fig.add_trace(go.Scatter(x=spy["date"], y=spy["close"], mode="lines", name="SPY")) #, layout=layout)
+        # fig = go.Figure(filename=f"portfolio_value_{portf_name}")
+        fig.add_trace(go.Scattergl(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value")) #, layout=layout)
+        fig.add_trace(go.Scattergl(x=spy["date"], y=spy["close"], mode="lines", name="SPY")) #, layout=layout)
         fig.update_xaxes(title_text='Date')
         fig.update_yaxes(title_text='Portfolio Value')
         portfolio_graph_url = get_portfolio_graph_url(fig)
@@ -269,24 +271,33 @@ def create_portfolio_pie(portfolio):
         print(fig_url)
         return plot_html
 
+
 def create_portfolio_table(portfolio, portfolio_info):
 
     if portfolio.shape[0]:
-        df = pd.DataFrame({"Returns": [f"{portfolio_info.returns:,.2%}" if portfolio_info.returns is not None else "NA"],
-                           "Volatility": [f"{portfolio_info.volatility:,.2%}" if portfolio_info.volatility is not None else "NA"],
-                           "Sharpe Ratio": [f"{portfolio_info.sharpe_ratio:,.2f}" if portfolio_info.sharpe_ratio is not None else "NA"]
+        annualized_returns = (portfolio_info.returns + 1) ** (1 / portfolio_info.time_horizon) - 1 if portfolio_info.returns is not None else "NA"
+        annualized_vol = portfolio_info.volatility / np.sqrt(portfolio_info.time_horizon) if portfolio_info.volatility is not None else "NA"
+        df = pd.DataFrame({
+                            "Initial Value": [f"${portfolio_info.cash:,.2f}" if portfolio_info.cash is not None else "NA"],
+                            "Current Value": [f"${(portfolio_info.returns + 1) * portfolio_info.cash:,.2f}" if portfolio_info.returns is not None else "NA"],
+                            "Returns": [f"{portfolio_info.returns:,.2%}" if portfolio_info.returns is not None else "NA"],
+                            "Annualized Returns": [f"{annualized_returns:,.2%}" ],
+                            "Volatility": [f"{portfolio_info.volatility:,.2%}" if portfolio_info.volatility is not None else "NA"],
+                            "Annualized Volatility": [f"{annualized_vol:,.2%}"],
+                            "Sharpe Ratio": [f"{portfolio_info.sharpe_ratio:,.2f}" if portfolio_info.sharpe_ratio is not None else "NA"],
+                            "Risk Appetite": [f"{portfolio_info.risk_appetite}"] if portfolio_info.risk_appetite is not None else "NA"
                            }).transpose().reset_index().rename(columns={"index": "Metric", 0: "Value"})
-        table_html = df.to_html(index=False).replace('<table border="1" class="dataframe">',
-                                                           '<table class="table">')
+        table_html = df.to_html(index=False).replace('<table border="1" class="dataframe">', '<table class="table">')
         table_html = table_html.replace("text-align: right;", "text-align: left;")
         table_html = table_html.replace('<thead>', '<thead class="thead-dark">')
         print(table_html)
         return table_html
 
+
 def create_portfolio_summary(portfolios):
     portfolios_list = portfolios.all()
 
-    names, time_horizons, investments, returns, curr_values = [], [], [], [], []
+    names, time_horizons, investments, returns, curr_values, annualized_returns, annualized_vol, risk_appetites = [], [], [], [], [], [], [], []
     for portfolio in portfolios_list:
         names += [portfolio.name]
         time_horizons += [int(portfolio.time_horizon)]
@@ -294,11 +305,21 @@ def create_portfolio_summary(portfolios):
         returns += [f"{portfolio.returns:,.2%}" if portfolio.returns is not None else "NA"]
         curr_values += [f"${((1 + portfolio.returns) * portfolio.cash):,.2f}" if portfolio.returns is not None else "NA"]
 
-    summary_df = pd.DataFrame({"Portfolio Name": names, "Time Horizon (Years)": time_horizons,
+        annualized_returns += [f"{((portfolio.returns + 1) ** (1 / portfolio.time_horizon) - 1):,.2%}" if portfolio.returns is not None else "NA"]
+        annualized_vol += [f"{(portfolio.volatility / np.sqrt(portfolio.time_horizon)):,.2%}" if portfolio.volatility is not None else "NA"]
+
+        risk_appetites += [portfolio.risk_appetite if portfolio.risk_appetite is not None else "N/A"]
+
+    summary_df = pd.DataFrame({"Portfolio Name": names,
+                               "Time Horizon (Years)": time_horizons,
+                               "Risk Appetite": risk_appetites,
                                "Initial Investment Amount": investments,
                                "Current Portfolio Value": curr_values,
-                               "Return": returns
+                               "Total Return": returns,
+                               "Annualized Return": annualized_returns,
+                               "Annualized Volatility": annualized_vol,
                                })
+
     summary_html = summary_df.to_html(index=False).replace('<table border="1" class="dataframe">',
                                                            '<table class="table">')
     summary_html = summary_html.replace("text-align: right;", "text-align: left;")
