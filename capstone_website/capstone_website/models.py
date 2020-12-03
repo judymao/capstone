@@ -306,6 +306,8 @@ class PortfolioInfo(db.Model):
                 self.volatility = sigma * np.sqrt(12)
                 self.sharpe_ratio = annual_sharpe
 
+                portfolio["value"] = (self.cash / portfolio.iloc[0]["value"]) * portfolio["value"]
+
                 return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
                                       assets=p["assets"], weights=p["weights"],
                                       value=p['value']) for p in
