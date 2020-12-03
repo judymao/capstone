@@ -286,7 +286,7 @@ def create_portfolio_table(portfolio, portfolio_info):
                             "Sharpe Ratio": [f"{portfolio_info.sharpe_ratio:,.2f}" if portfolio_info.sharpe_ratio is not None else "NA"],
                             "Risk Appetite": [f"{portfolio_info.risk_appetite}"] if portfolio_info.risk_appetite is not None else "NA"
                            }).transpose().reset_index().rename(columns={"index": "Metric", 0: "Value"})
-        table_html = df.to_html(index=False).replace('<table border="1" class="dataframe">', '<table class="table">')
+        table_html = df.to_html(index=False).replace('<table border="1" class="dataframe">', '<table class="table table-hover">')
         table_html = table_html.replace("text-align: right;", "text-align: left;")
         table_html = table_html.replace('<thead>', '<thead class="thead-dark">')
         print(table_html)
