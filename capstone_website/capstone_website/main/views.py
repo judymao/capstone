@@ -309,7 +309,7 @@ def create_portfolio_table(portfolio, portfolio_info):
     if portfolio.shape[0]:
         annualized_returns = (portfolio_info.returns + 1) ** (1 / portfolio_info.time_horizon) - 1 if portfolio_info.returns is not None else "NA"
         df = pd.DataFrame({
-                            "Time Horizon": [f"{portfolio_info.time_horizon}"] if portfolio_info.time_horizon is not None else "NA",
+                            "Time Horizon": [f"{int(portfolio_info.time_horizon)} Years"] if portfolio_info.time_horizon is not None else "NA",
                             "Risk Appetite": [f"{portfolio_info.risk_appetite}"] if portfolio_info.risk_appetite is not None else "NA",
                             "Initial Value": [f"${portfolio_info.cash:,.2f}" if portfolio_info.cash is not None else "NA"],
                             "Current Value": [f"${(portfolio_info.returns + 1) * portfolio_info.cash:,.2f}" if portfolio_info.returns is not None else "NA"],
