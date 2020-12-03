@@ -109,6 +109,7 @@ class Scenarios:
     def __init__(self, mode):
         self.mode=mode
         self.value=None
+
     def gen_scenarios(self, S, data, t, lookback):
         if self.mode==0:
             factor_returns = data.get_factor_returns()
