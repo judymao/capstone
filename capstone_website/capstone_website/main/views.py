@@ -16,6 +16,7 @@ import numpy as np
 
 from chart_studio.exceptions import PlotlyRequestError
 
+
 @main.route('/')
 def index():
     return render_template("index.html")

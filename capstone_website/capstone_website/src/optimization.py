@@ -64,7 +64,8 @@ class Model:
 
         # Construct Problem and Solve
         prob = cp.Problem(objective, constr_model.value)
-        result = prob.solve(solver="GUROBI", verbose=False)
+        # result = prob.solve(solver="GUROBI", verbose=False)
+        result = prob.solve()
         self.status = prob.status
 
         temp_goal_ret = self.goal_ret
