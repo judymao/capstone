@@ -302,7 +302,7 @@ class PortfolioInfo(db.Model):
                 sharpe_ratio = (stats.gmean(portfolio["returns"].dropna() - np.array(rfr["risk_free"].iloc[-1]) + 1, axis=0) - 1) / sigma
                 annual_sharpe = sharpe_ratio * (np.sqrt(12))
 
-                self.volatility = sigma
+                self.volatility = sigma * np.sqrt(12)
                 self.sharpe_ratio = annual_sharpe
 
                 return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
@@ -326,7 +326,7 @@ class PortfolioInfo(db.Model):
             portfolio.loc[:, "portfolio_id"] = self.id
 
             self.returns = cumu_returns[-1] - 1
-            self.volatility = np.std(port.returns)
+            self.volatility = np.std(port.returns - np.array(rfr["risk_free"].iloc[-1])) * np.sqrt(12)
             self.sharpe_ratio = sharpe_ratio
 
             return [PortfolioData(user_id=p['user_id'], portfolio_id=p['portfolio_id'], date=p['date'],
