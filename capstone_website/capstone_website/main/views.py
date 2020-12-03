@@ -99,7 +99,10 @@ def portfolio_page(portfolio_name):
     if curr_portfolio.id not in SAVED_PLOTS.keys() or str(curr_portfolio.id)+'_pie' not in SAVED_PLOTS.keys():
         print("Saving html ...")
         spy_df = Stock.get_etf(constants.SPY, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
-        portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, curr_portfolio.id)
+        etf_df = Stock.get_etf(constants.DOW_JONES, portfolio_data_df.iloc[0]["date"],
+                               portfolio_data_df.iloc[-1]["date"])
+        rfr_df = Stock.get_risk_free(portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
+        portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, etf_df, rfr_df, portfolio_info.id)
         SAVED_PLOTS[curr_portfolio.id] = portfolio_graph
 
         portfolio_pie = create_portfolio_pie(portfolio_data_df, curr_portfolio.id)
@@ -194,7 +197,9 @@ def new_general():
             print("Saving html ...")
             constants = Constants()
             spy_df = Stock.get_etf(constants.SPY, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
-            portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, portfolio_info.id)
+            etf_df = Stock.get_etf(constants.DOW_JONES, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
+            rfr_df = Stock.get_risk_free(portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
+            portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, etf_df, rfr_df, portfolio_info.id)
             SAVED_PLOTS[portfolio_info.id] = portfolio_graph
 
             portfolio_pie = create_portfolio_pie(portfolio_data_df, portfolio_info.id)
@@ -250,7 +255,7 @@ def account():
 
 
 # Helper Function Below
-def create_portfolio_graph(portfolio, spy, portfolio_id):
+def create_portfolio_graph(portfolio, spy, etf, rfr, portfolio_id):
     # print(portfolio)
     if portfolio.shape[0]:
         # Render a graph and return the URL
@@ -258,11 +263,14 @@ def create_portfolio_graph(portfolio, spy, portfolio_id):
 
         spy["close"] = spy["close"] * portfolio.iloc[0]["value"] / spy.iloc[0]["close"]
         spy = spy.sort_values(by="date").groupby("date").last().reset_index()
+        etf["adj_close"] = etf["close"]*0.6 + rfr["close"]*0.4
+        etf["adj_close"] = etf["adj_close"]*portfolio.iloc[0]["value"] / etf.iloc[0]["adj_close"]
 
         fig = go.Figure()
         # fig = go.Figure(filename=f"portfolio_value_{portf_name}")
         fig.add_trace(go.Scattergl(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value")) #, layout=layout)
         fig.add_trace(go.Scattergl(x=spy["date"], y=spy["close"], mode="lines", name="SPY")) #, layout=layout)
+        fig.add_trace(go.Scattergl(x=etf["date"], y=etf["adj_close"], mode="lines", name="40% Risk Free/60% Dow Jones"))
         fig.update_xaxes(title_text='Date')
         fig.update_yaxes(title_text='Portfolio Value')
         portfolio_graph_url = get_portfolio_graph_url(fig, name=portfolio_id)
