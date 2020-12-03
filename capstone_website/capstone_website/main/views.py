@@ -276,14 +276,12 @@ def create_portfolio_table(portfolio, portfolio_info):
 
     if portfolio.shape[0]:
         annualized_returns = (portfolio_info.returns + 1) ** (1 / portfolio_info.time_horizon) - 1 if portfolio_info.returns is not None else "NA"
-        annualized_vol = portfolio_info.volatility / np.sqrt(portfolio_info.time_horizon) if portfolio_info.volatility is not None else "NA"
         df = pd.DataFrame({
                             "Initial Value": [f"${portfolio_info.cash:,.2f}" if portfolio_info.cash is not None else "NA"],
                             "Current Value": [f"${(portfolio_info.returns + 1) * portfolio_info.cash:,.2f}" if portfolio_info.returns is not None else "NA"],
                             "Returns": [f"{portfolio_info.returns:,.2%}" if portfolio_info.returns is not None else "NA"],
                             "Annualized Returns": [f"{annualized_returns:,.2%}" ],
-                            "Volatility": [f"{portfolio_info.volatility:,.2%}" if portfolio_info.volatility is not None else "NA"],
-                            "Annualized Volatility": [f"{annualized_vol:,.2%}"],
+                            "Annualized Volatility": [f"{portfolio_info.volatility:,.2%}" if portfolio_info.volatility is not None else "NA"],
                             "Sharpe Ratio": [f"{portfolio_info.sharpe_ratio:,.2f}" if portfolio_info.sharpe_ratio is not None else "NA"],
                             "Risk Appetite": [f"{portfolio_info.risk_appetite}"] if portfolio_info.risk_appetite is not None else "NA"
                            }).transpose().reset_index().rename(columns={"index": "Metric", 0: "Value"})
@@ -297,18 +295,17 @@ def create_portfolio_table(portfolio, portfolio_info):
 def create_portfolio_summary(portfolios):
     portfolios_list = portfolios.all()
 
-    names, time_horizons, investments, returns, curr_values, annualized_returns, annualized_vol, risk_appetites = [], [], [], [], [], [], [], []
+    names, time_horizons, investments, returns, curr_values, annualized_returns, annualized_vol, risk_appetites, sharpe_ratios = [], [], [], [], [], [], [], [], []
     for portfolio in portfolios_list:
         names += [portfolio.name]
         time_horizons += [int(portfolio.time_horizon)]
         investments += ['$' + str(portfolio.cash)]
         returns += [f"{portfolio.returns:,.2%}" if portfolio.returns is not None else "NA"]
         curr_values += [f"${((1 + portfolio.returns) * portfolio.cash):,.2f}" if portfolio.returns is not None else "NA"]
-
         annualized_returns += [f"{((portfolio.returns + 1) ** (1 / portfolio.time_horizon) - 1):,.2%}" if portfolio.returns is not None else "NA"]
-        annualized_vol += [f"{(portfolio.volatility / np.sqrt(portfolio.time_horizon)):,.2%}" if portfolio.volatility is not None else "NA"]
-
-        risk_appetites += [portfolio.risk_appetite if portfolio.risk_appetite is not None else "N/A"]
+        annualized_vol += [f"{(portfolio.volatility):,.2%}" if portfolio.volatility is not None else "NA"]
+        risk_appetites += [portfolio.risk_appetite if portfolio.risk_appetite is not None else "NA"]
+        sharpe_ratios += [round(portfolio.sharpe_ratio, 2) if portfolio.sharpe_ratio is not None else "NA"]
 
     summary_df = pd.DataFrame({"Portfolio Name": names,
                                "Time Horizon (Years)": time_horizons,
@@ -318,6 +315,7 @@ def create_portfolio_summary(portfolios):
                                "Total Return": returns,
                                "Annualized Return": annualized_returns,
                                "Annualized Volatility": annualized_vol,
+                               "Sharpe Ratio": sharpe_ratios
                                })
 
     summary_html = summary_df.to_html(index=False).replace('<table border="1" class="dataframe">',
