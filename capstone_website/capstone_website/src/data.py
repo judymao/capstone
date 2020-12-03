@@ -72,12 +72,15 @@ class Data:
         # Extact the file data
         zip_file.extractall()
         zip_file.close()
-        ff_factors = pd.read_csv('F-F_Research_Data_Factors.csv', skiprows=3, index_col=0)
+        # ff_factors = pd.read_csv('F-F_Research_Data_Factors.csv', skiprows=3, index_col=0)
+        url = "https://raw.githubusercontent.com/judymao/capstone/master/capstone_website/capstone_website/src/F-F_Research_Data_Factors.CSV"
+        ff_factors = pd.read_csv(url, skiprows=3, index_col=0)
         # Skip null rows
         ff_row = ff_factors.isnull().any(1).to_numpy().nonzero()[0][0]
 
         # Read the csv file again with skipped rows
-        ff_factors = pd.read_csv('F-F_Research_Data_Factors.csv', skiprows=3, nrows=ff_row, index_col=0)
+        # ff_factors = pd.read_csv('F-F_Research_Data_Factors.csv', skiprows=3, nrows=ff_row, index_col=0)
+        ff_factors = pd.read_csv(url, skiprows=3, nrows=ff_row, index_col=0)
 
         # Format the date index
         ff_factors.index = pd.to_datetime(ff_factors.index, format='%Y%m')
