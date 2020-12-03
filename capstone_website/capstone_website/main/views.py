@@ -188,9 +188,6 @@ def new_general():
 @main.route('/account', methods=["GET", "POST"])
 @login_required
 def account():
-
-    clean()
-
     # Get the user details
     user = User.query.filter_by(user=current_user.user).first()
 
