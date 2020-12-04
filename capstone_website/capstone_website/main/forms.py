@@ -74,7 +74,7 @@ class PortfolioForm(FlaskForm):
                         , validators=[DataRequired()])
 
     timeHorizon = IntegerField(label="How long do you intend to hold this portfolio for? Please enter your time "
-                                     "horizon in number of years.", validators=[DataRequired(), NumberRange(min=0, max=13)])
+                                     "horizon in number of years.", validators=[DataRequired(), NumberRange(min=0, max=12)])
 
     def validate_portfolioName(self, field):
         user = User.query.filter_by(user=current_user.user).first()
