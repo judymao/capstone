@@ -16,7 +16,7 @@ import numpy as np
 
 from chart_studio.exceptions import PlotlyRequestError
 
-SAVED_PLOTS = {}
+# SAVED_PLOTS = {}
 
 @main.route('/')
 def index():
@@ -92,11 +92,11 @@ def portfolio_page(portfolio_name):
     curr_portfolio = portfolio_info.get_portfolio_instance(user_id=user.id, portfolio_name=portfolio_name)
 
     portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=curr_portfolio.id)
-    print("Portfolio graph previously generated:", str(curr_portfolio.id)+'_line' in SAVED_PLOTS.keys())
-    print("Portfolio pie previously generated:", str(curr_portfolio.id)+'_pie' in SAVED_PLOTS.keys())
+    print("Portfolio graph previously generated:", str(curr_portfolio.id)+'_line' in session.keys())
+    print("Portfolio pie previously generated:", str(curr_portfolio.id)+'_pie' in session.keys())
     print("Portfolio ID:", curr_portfolio.id)
-    print(SAVED_PLOTS)
-    if str(curr_portfolio.id)+'_line' not in SAVED_PLOTS.keys() or str(curr_portfolio.id)+'_pie' not in SAVED_PLOTS.keys():
+    print(session)
+    if str(curr_portfolio.id)+'_line' not in session.keys() or str(curr_portfolio.id)+'_pie' not in session.keys():
         print("Saving graph html to dictionary ...")
         spy_df = Stock.get_etf(constants.SPY, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
         etf_df = Stock.get_etf(constants.DOW_JONES, portfolio_data_df.iloc[0]["date"],
@@ -105,12 +105,12 @@ def portfolio_page(portfolio_name):
         portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, etf_df, rfr_df, curr_portfolio.id)
         portfolio_pie = create_portfolio_pie(portfolio_data_df, curr_portfolio.id)
 
-        SAVED_PLOTS[str(curr_portfolio.id)+'_line'] = portfolio_graph
-        SAVED_PLOTS[str(curr_portfolio.id)+"_pie"] = portfolio_pie
+        session[str(curr_portfolio.id)+'_line'] = portfolio_graph
+        session[str(curr_portfolio.id)+"_pie"] = portfolio_pie
 
     portfolio_table = create_portfolio_table(portfolio_data_df, curr_portfolio)
     return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio,
-                           portfolio_graph=SAVED_PLOTS[str(curr_portfolio.id)+'_line'], pie_graph=SAVED_PLOTS[str(curr_portfolio.id)+"_pie"], table=portfolio_table)
+                           portfolio_graph=session[str(curr_portfolio.id)+'_line'], pie_graph=session[str(curr_portfolio.id)+"_pie"], table=portfolio_table)
 
 
 @main.route('/portfolio/<portfolio_name>/delete', methods=["GET", "POST"])
@@ -122,8 +122,8 @@ def delete_portfolio(portfolio_name):
 
     if form.validate_on_submit() and request.method == 'POST':
         # Remove saved plots
-        SAVED_PLOTS.pop(curr_portfolio.id)
-        SAVED_PLOTS.pop(str(curr_portfolio.id)+"_pie")
+        session.pop(str(curr_portfolio.id)+"_line", None)
+        session.pop(str(curr_portfolio.id)+"_pie", None)
 
         # Remove from databases
         PortfolioData.query.filter_by(user_id=user.id, portfolio_id=curr_portfolio.id).delete()
@@ -191,9 +191,9 @@ def new_general():
 
         portfolio_data = PortfolioData()
         portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=portfolio_info.id)
-        print("Portfolio graph previously generated:", str(portfolio_info.id) + '_line' in SAVED_PLOTS.keys())
-        print("Portfolio pie previously generated:", str(portfolio_info.id) + '_pie' in SAVED_PLOTS.keys())
-        if str(portfolio_info.id) + '_line' not in SAVED_PLOTS.keys() or str(portfolio_info.id) + '_pie' not in SAVED_PLOTS.keys():
+        print("Portfolio graph previously generated:", str(portfolio_info.id) + '_line' in session.keys())
+        print("Portfolio pie previously generated:", str(portfolio_info.id) + '_pie' in session.keys())
+        if str(portfolio_info.id) + '_line' not in session.keys() or str(portfolio_info.id) + '_pie' not in session.keys():
             print("Saving graph html to dictionary ...")
             constants = Constants()
             spy_df = Stock.get_etf(constants.SPY, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
@@ -202,8 +202,8 @@ def new_general():
             portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, etf_df, rfr_df, portfolio_info.id)
             portfolio_pie = create_portfolio_pie(portfolio_data_df, portfolio_info.id)
 
-            SAVED_PLOTS[str(portfolio_info.id)+'_line'] = portfolio_graph
-            SAVED_PLOTS[str(portfolio_info.id)+'_pie'] = portfolio_pie
+            session[str(portfolio_info.id)+'_line'] = portfolio_graph
+            session[str(portfolio_info.id)+'_pie'] = portfolio_pie
 
         # Remove the session variables
         session.pop('loss', None)
