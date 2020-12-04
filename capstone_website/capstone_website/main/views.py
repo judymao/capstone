@@ -169,7 +169,7 @@ def new_general():
                                   lose_philosophy=session['lose'], games_philosophy=session['game'],
                                   unknown_philosophy=session['unknown'], job_philosophy=session['job'],
                                   monitor_philosophy=session['monitor'], name=form.portfolioName.data,
-                                  time_horizon=form.timeHorizon.data, cash=form.cash.data)
+                                  time_horizon=form.timeHorizon.data, cash=form.cash.data * 1000)
 
         # Save portfolio info into the database
         db.session.add(portfolio)

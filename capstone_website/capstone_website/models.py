@@ -235,8 +235,9 @@ class PortfolioInfo(db.Model):
         portfolios = PortfolioInfo.query.filter_by(user_id=user_id)
         return portfolios
 
-    def get_baseline_portfolios(self, risk_appetite):
-        portfolio = self.query.filter_by(name="Baseline_" + risk_appetite).first()
+    @staticmethod
+    def get_baseline_portfolios(risk_appetite):
+        portfolio = PortfolioInfo.query.filter_by(name="Baseline_" + risk_appetite).first()
         return portfolio
 
 
@@ -284,11 +285,11 @@ class PortfolioInfo(db.Model):
             return_goal = high_risk_ret
             self.risk_appetite = "High"
 
-        baseline_portfolio = self.get_baseline_portfolios(self.risk_appetite)
+        baseline_portfolio = PortfolioInfo.get_baseline_portfolios(self.risk_appetite)
 
         # If baseline exists, inherit values from this baseline portfolio
         # if baseline_portfolio.sharpe_ratio is not None:
-        if baseline_portfolio is not None:
+        if baseline_portfolio is not None and baseline_portfolio.sharpe_ratio is not None:
                 print(f"Identified baseline portfolio for risk appetite: {self.risk_appetite}")
                 portfolio_data = PortfolioData()
                 baseline_portfolio_df = portfolio_data.get_portfolio_data_df(baseline_portfolio.user_id, baseline_portfolio.id)
