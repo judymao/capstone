@@ -92,25 +92,25 @@ def portfolio_page(portfolio_name):
     curr_portfolio = portfolio_info.get_portfolio_instance(user_id=user.id, portfolio_name=portfolio_name)
 
     portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=curr_portfolio.id)
-    print("Portfolio graph previously generated:", curr_portfolio.id in SAVED_PLOTS.keys())
+    print("Portfolio graph previously generated:", str(curr_portfolio.id)+'_line' in SAVED_PLOTS.keys())
     print("Portfolio pie previously generated:", str(curr_portfolio.id)+'_pie' in SAVED_PLOTS.keys())
     print("Portfolio ID:", curr_portfolio.id)
     print(SAVED_PLOTS)
-    if curr_portfolio.id not in SAVED_PLOTS.keys() or str(curr_portfolio.id)+'_pie' not in SAVED_PLOTS.keys():
+    if str(curr_portfolio.id)+'_line' not in SAVED_PLOTS.keys() or str(curr_portfolio.id)+'_pie' not in SAVED_PLOTS.keys():
         print("Saving html ...")
         spy_df = Stock.get_etf(constants.SPY, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
         etf_df = Stock.get_etf(constants.DOW_JONES, portfolio_data_df.iloc[0]["date"],
                                portfolio_data_df.iloc[-1]["date"])
         rfr_df = Stock.get_risk_free(portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
         portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, etf_df, rfr_df, portfolio_info.id)
-        SAVED_PLOTS[curr_portfolio.id] = portfolio_graph
+        SAVED_PLOTS[str(curr_portfolio.id)+'_line'] = portfolio_graph
 
         portfolio_pie = create_portfolio_pie(portfolio_data_df, curr_portfolio.id)
         SAVED_PLOTS[str(curr_portfolio.id)+"_pie"] = portfolio_pie
 
     portfolio_table = create_portfolio_table(portfolio_data_df, curr_portfolio)
     return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio,
-                           portfolio_graph=SAVED_PLOTS[curr_portfolio.id], pie_graph=SAVED_PLOTS[str(curr_portfolio.id)+"_pie"], table=portfolio_table)
+                           portfolio_graph=SAVED_PLOTS[str(curr_portfolio.id)+'_line'], pie_graph=SAVED_PLOTS[str(curr_portfolio.id)+"_pie"], table=portfolio_table)
 
 
 @main.route('/portfolio/<portfolio_name>/delete', methods=["GET", "POST"])
@@ -191,16 +191,16 @@ def new_general():
 
         portfolio_data = PortfolioData()
         portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=portfolio_info.id)
-        print("Portfolio graph previously generated:", portfolio_info.id in SAVED_PLOTS.keys())
+        print("Portfolio graph previously generated:", str(portfolio_info.id) + '_line' in SAVED_PLOTS.keys())
         print("Portfolio pie previously generated:", str(portfolio_info.id) + '_pie' in SAVED_PLOTS.keys())
-        if portfolio_info.id not in SAVED_PLOTS.keys() or str(portfolio_info.id) + '_pie' not in SAVED_PLOTS.keys():
+        if str(portfolio_info.id) + '_line' not in SAVED_PLOTS.keys() or str(portfolio_info.id) + '_pie' not in SAVED_PLOTS.keys():
             print("Saving html ...")
             constants = Constants()
             spy_df = Stock.get_etf(constants.SPY, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
             etf_df = Stock.get_etf(constants.DOW_JONES, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
             rfr_df = Stock.get_risk_free(portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
             portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, etf_df, rfr_df, portfolio_info.id)
-            SAVED_PLOTS[portfolio_info.id] = portfolio_graph
+            SAVED_PLOTS[str(portfolio_info.id) + '_line'] = portfolio_graph
 
             portfolio_pie = create_portfolio_pie(portfolio_data_df, portfolio_info.id)
             SAVED_PLOTS[str(portfolio_info.id)+'_pie'] = portfolio_pie

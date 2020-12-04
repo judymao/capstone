@@ -70,7 +70,8 @@ class PortfolioForm(FlaskForm):
     portfolioName = StringField('What would you like to name this portfolio?', validators=[DataRequired(),
                                                                                            Length(min=4, max=50)])
 
-    cash = IntegerField('How much are you willing to invest into this portfolio? Please enter a whole number.'
+    cash = IntegerField('How much are you willing to invest into this portfolio? Please enter your amount in thousands '
+                        'as a whole number.'
                         , validators=[DataRequired()])
 
     timeHorizon = IntegerField(label="How long do you intend to hold this portfolio for? Please enter your time "
