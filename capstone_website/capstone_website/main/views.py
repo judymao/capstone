@@ -332,7 +332,7 @@ def create_portfolio_summary(portfolios):
     for portfolio in portfolios_list:
         names += [portfolio.name]
         time_horizons += [int(portfolio.time_horizon)]
-        investments += ['$' + str(portfolio.cash)]
+        investments += [f"${(portfolio.cash):,.2f}"]
         returns += [f"{portfolio.returns:,.2%}" if portfolio.returns is not None else "NA"]
         curr_values += [f"${((1 + portfolio.returns) * portfolio.cash):,.2f}" if portfolio.returns is not None else "NA"]
         annualized_returns += [f"{((portfolio.returns + 1) ** (1 / portfolio.time_horizon) - 1):,.2%}" if portfolio.returns is not None else "NA"]
