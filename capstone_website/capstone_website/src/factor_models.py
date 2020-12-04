@@ -18,7 +18,6 @@ from sklearn.preprocessing import StandardScaler
 # from keras.layers import TimeDistributed
 
 
-
 class FactorModel:
     def __init__(self, lookahead, lookback, regress_weighting):
 
@@ -63,6 +62,7 @@ class FactorModel:
 
         for i in range(0, lookahead):
             # Calculate the factor covariance matrix
+
             F = factor_data.loc[:, factor_data.columns != 'Ones'].cov()
 
             # Calculate the factor expected excess return from historical data using the geometric mean
@@ -265,7 +265,7 @@ class FactorModel:
     #         for col in range(actual.shape[1]):
     #             for k in range(actual.shape[2]):
     #                 s += (actual[row, col, k] - predicted[row, col, k]) ** 2
-    #     score = np.sqrt(s / (actual.shape[0] * actual.shape[1] * actual.shape[2]))
+    #     score = sqrt(s / (actual.shape[0] * actual.shape[1] * actual.shape[2]))
     #     return score
     #
     # def evaluate_model(self, train_x, train_y, test_x, test_y, n_lookback):
@@ -283,7 +283,7 @@ class FactorModel:
     #     # evaluate predictions
     #     predictions = np.array(predictions)
     #     score = self.evaluate_forecasts(test_y, predictions)
-    #     # plt.plot(model.history.history['loss'])
+    #     plt.plot(model.history.history['loss'])
     #     # plt.plot(model.history.history['val_loss'])
     #     return score
     #

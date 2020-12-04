@@ -7,7 +7,6 @@
 
 {% block head %}
 {{ super() }}
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/profile.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -61,9 +60,12 @@
         </div>
         <div class="col-lg-4 order-lg-1 text-center">
             <div class="user-icon">
-                <img src="{{ url_for('static', filename='images/temp_icon.jpg') }}"
+{#                <img src="{{ url_for('static', filename='images/temp_icon.jpg') }}"#}
+{#                     class="mx-auto img-fluid img-circle d-block"#}
+{#                     alt="avatar" style="max-width:200px">#}
+                <img src="https://raw.githubusercontent.com/judymao/capstone/master/capstone_website/capstone_website/static/images/temp_icon.JPG"
                      class="mx-auto img-fluid img-circle d-block"
-                     alt="avatar">
+                     alt="avatar" style="max-width:200px">
                 <h6 class="mt-2">
                     {%  if current_user.first_name != None %}
                     {{ current_user.first_name }}

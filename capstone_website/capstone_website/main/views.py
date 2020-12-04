@@ -12,9 +12,11 @@ import chart_studio.plotly as py
 import chart_studio.tools as tls
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 
 from chart_studio.exceptions import PlotlyRequestError
 
+SAVED_PLOTS = {}
 
 @main.route('/')
 def index():
@@ -90,16 +92,25 @@ def portfolio_page(portfolio_name):
     curr_portfolio = portfolio_info.get_portfolio_instance(user_id=user.id, portfolio_name=portfolio_name)
 
     portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=curr_portfolio.id)
-    spy_df = Stock.get_etf(constants.SPY, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
-    portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, portfolio_name)
-    portfolio_pie = create_portfolio_pie(portfolio_data_df)
+    print("Portfolio graph previously generated:", str(curr_portfolio.id)+'_line' in SAVED_PLOTS.keys())
+    print("Portfolio pie previously generated:", str(curr_portfolio.id)+'_pie' in SAVED_PLOTS.keys())
+    print("Portfolio ID:", curr_portfolio.id)
+    print(SAVED_PLOTS)
+    if str(curr_portfolio.id)+'_line' not in SAVED_PLOTS.keys() or str(curr_portfolio.id)+'_pie' not in SAVED_PLOTS.keys():
+        print("Saving graph html to dictionary ...")
+        spy_df = Stock.get_etf(constants.SPY, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
+        etf_df = Stock.get_etf(constants.DOW_JONES, portfolio_data_df.iloc[0]["date"],
+                               portfolio_data_df.iloc[-1]["date"])
+        rfr_df = Stock.get_risk_free(portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
+        portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, etf_df, rfr_df, curr_portfolio.id)
+        portfolio_pie = create_portfolio_pie(portfolio_data_df, curr_portfolio.id)
+
+        SAVED_PLOTS[str(curr_portfolio.id)+'_line'] = portfolio_graph
+        SAVED_PLOTS[str(curr_portfolio.id)+"_pie"] = portfolio_pie
+
     portfolio_table = create_portfolio_table(portfolio_data_df, curr_portfolio)
-
-    # TO-DO: replace this with portfolio table
-    # portfolio_table = create_portfolio_summary(portfolios)
-
     return render_template('portfolio.html', portfolios=portfolios, curr_portfolio=curr_portfolio,
-                           portfolio_graph=portfolio_graph, pie_graph=portfolio_pie, table=portfolio_table)
+                           portfolio_graph=SAVED_PLOTS[str(curr_portfolio.id)+'_line'], pie_graph=SAVED_PLOTS[str(curr_portfolio.id)+"_pie"], table=portfolio_table)
 
 
 @main.route('/portfolio/<portfolio_name>/delete', methods=["GET", "POST"])
@@ -110,9 +121,15 @@ def delete_portfolio(portfolio_name):
     curr_portfolio = PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).first()
 
     if form.validate_on_submit() and request.method == 'POST':
+        # Remove saved plots
+        SAVED_PLOTS.pop(curr_portfolio.id)
+        SAVED_PLOTS.pop(str(curr_portfolio.id)+"_pie")
+
+        # Remove from databases
         PortfolioData.query.filter_by(user_id=user.id, portfolio_id=curr_portfolio.id).delete()
         PortfolioInfo.query.filter_by(user_id=user.id, name=portfolio_name).delete()
         db.session.commit()
+
         flash('Portfolio ' + portfolio_name + ' deleted!')
 
         portfolios = PortfolioInfo.query.filter_by(user_id=user.id)
@@ -152,7 +169,7 @@ def new_general():
                                   lose_philosophy=session['lose'], games_philosophy=session['game'],
                                   unknown_philosophy=session['unknown'], job_philosophy=session['job'],
                                   monitor_philosophy=session['monitor'], name=form.portfolioName.data,
-                                  time_horizon=form.timeHorizon.data, cash=form.cash.data)
+                                  time_horizon=form.timeHorizon.data, cash=form.cash.data * 1000)
 
         # Save portfolio info into the database
         db.session.add(portfolio)
@@ -164,13 +181,29 @@ def new_general():
         start = timer()
         # portfolio_info = PortfolioInfo.query.filter_by(user_id=user.id, name=form.portfolioName.data).first()
         portfolio_info = portfolio.get_portfolio_instance(user_id=user.id, portfolio_name=form.portfolioName.data)
-        portfolio_data = portfolio_info.create_portfolio()
+        portfolio_data_list = portfolio_info.create_portfolio()
         end = timer()
         print(f"Creating portfolio took: {end - start} seconds")
 
         # Save portfolio data into the database
-        db.session.add_all(portfolio_data)
+        db.session.add_all(portfolio_data_list)
         db.session.commit()
+
+        portfolio_data = PortfolioData()
+        portfolio_data_df = portfolio_data.get_portfolio_data_df(user_id=user.id, portfolio_id=portfolio_info.id)
+        print("Portfolio graph previously generated:", str(portfolio_info.id) + '_line' in SAVED_PLOTS.keys())
+        print("Portfolio pie previously generated:", str(portfolio_info.id) + '_pie' in SAVED_PLOTS.keys())
+        if str(portfolio_info.id) + '_line' not in SAVED_PLOTS.keys() or str(portfolio_info.id) + '_pie' not in SAVED_PLOTS.keys():
+            print("Saving graph html to dictionary ...")
+            constants = Constants()
+            spy_df = Stock.get_etf(constants.SPY, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
+            etf_df = Stock.get_etf(constants.DOW_JONES, portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
+            rfr_df = Stock.get_risk_free(portfolio_data_df.iloc[0]["date"], portfolio_data_df.iloc[-1]["date"])
+            portfolio_graph = create_portfolio_graph(portfolio_data_df, spy_df, etf_df, rfr_df, portfolio_info.id)
+            portfolio_pie = create_portfolio_pie(portfolio_data_df, portfolio_info.id)
+
+            SAVED_PLOTS[str(portfolio_info.id)+'_line'] = portfolio_graph
+            SAVED_PLOTS[str(portfolio_info.id)+'_pie'] = portfolio_pie
 
         # Remove the session variables
         session.pop('loss', None)
@@ -189,7 +222,6 @@ def new_general():
 @main.route('/account', methods=["GET", "POST"])
 @login_required
 def account():
-
     # Get the user details
     user = User.query.filter_by(user=current_user.user).first()
 
@@ -223,7 +255,7 @@ def account():
 
 
 # Helper Function Below
-def create_portfolio_graph(portfolio, spy, portf_name):
+def create_portfolio_graph(portfolio, spy, etf, rfr, portfolio_id):
     # print(portfolio)
     if portfolio.shape[0]:
         # Render a graph and return the URL
@@ -231,15 +263,17 @@ def create_portfolio_graph(portfolio, spy, portf_name):
 
         spy["close"] = spy["close"] * portfolio.iloc[0]["value"] / spy.iloc[0]["close"]
         spy = spy.sort_values(by="date").groupby("date").last().reset_index()
+        etf["adj_close"] = etf["close"]*0.6 + rfr["close"]*0.4
+        etf["adj_close"] = etf["adj_close"]*portfolio.iloc[0]["value"] / etf.iloc[0]["adj_close"]
 
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value")) #, layout=layout)
-        fig.add_trace(go.Scatter(x=spy["date"], y=spy["close"], mode="lines", name="SPY")) #, layout=layout)
+        # fig = go.Figure(filename=f"portfolio_value_{portf_name}")
+        fig.add_trace(go.Scattergl(x=portfolio["date"], y=portfolio["value"], mode="lines", name="Portfolio Value")) #, layout=layout)
+        fig.add_trace(go.Scattergl(x=spy["date"], y=spy["close"], mode="lines", name="SPY")) #, layout=layout)
+        fig.add_trace(go.Scattergl(x=etf["date"], y=etf["adj_close"], mode="lines", name="40% Risk Free/60% Dow Jones"))
         fig.update_xaxes(title_text='Date')
         fig.update_yaxes(title_text='Portfolio Value')
-        portfolio_graph_url = get_portfolio_graph_url(fig)
-        while portfolio_graph_url is None:
-            portfolio_graph_url = get_portfolio_graph_url(fig)
+        portfolio_graph_url = get_portfolio_graph_url(fig, name=portfolio_id)
         print(portfolio_graph_url)
         plot_html = tls.get_embed(portfolio_graph_url)
 
@@ -252,12 +286,14 @@ def get_portfolio_graph_url(fig, name=1):
         try:
             portfolio_graph_url = py.plot(fig, filename=f"portfolio_value_{name}", auto_open=False, )
         except PlotlyRequestError:
-            print(f"Ran into PlotlyRequestError. Trying new filename")
-            name += 1
+            print(f"Ran into PlotlyRequestError.")
+
+    # print("Portfolio ID (line):", name)
+    # print("Graph URL generated:", portfolio_graph_url)
     return portfolio_graph_url
 
 
-def create_portfolio_pie(portfolio):
+def create_portfolio_pie(portfolio, portfolio_id):
 
     if portfolio.shape[0]:
         df = pd.DataFrame({"assets": portfolio.iloc[-1]["assets"],
@@ -265,45 +301,64 @@ def create_portfolio_pie(portfolio):
                            })
         df = df[df["weights"] > 0]
         fig = go.Figure(data=go.Pie(labels=df["assets"], values=df["weights"]))
-        fig_url = py.plot(fig, filename="portfolio_pie", auto_open=False, )
+        fig_url = py.plot(fig, filename=f"portfolio_pie_{portfolio_id}", auto_open=False, )
         plot_html = tls.get_embed(fig_url)
         print(fig_url)
+        # print("Portfolio ID (pie):", portfolio_id)
         return plot_html
+
 
 def create_portfolio_table(portfolio, portfolio_info):
 
     if portfolio.shape[0]:
-        df = pd.DataFrame({"Returns": [f"{portfolio_info.returns:,.2%}" if portfolio_info.returns is not None else "NA"],
-                           "Volatility": [f"{portfolio_info.volatility:,.2%}" if portfolio_info.volatility is not None else "NA"],
-                           "Sharpe Ratio": [f"{portfolio_info.sharpe_ratio:,.2f}" if portfolio_info.sharpe_ratio is not None else "NA"]
+        annualized_returns = (portfolio_info.returns + 1) ** (1 / portfolio_info.time_horizon) - 1 if portfolio_info.returns is not None else "NA"
+        df = pd.DataFrame({
+                            "Time Horizon": [f"{int(portfolio_info.time_horizon)} Years"] if portfolio_info.time_horizon is not None else "NA",
+                            "Risk Appetite": [f"{portfolio_info.risk_appetite}"] if portfolio_info.risk_appetite is not None else "NA",
+                            "Initial Value": [f"${portfolio_info.cash:,.2f}" if portfolio_info.cash is not None else "NA"],
+                            "Current Value": [f"${(portfolio_info.returns + 1) * portfolio_info.cash:,.2f}" if portfolio_info.returns is not None else "NA"],
+                            "Returns": [f"{portfolio_info.returns:,.2%}" if portfolio_info.returns is not None else "NA"],
+                            "Annualized Returns": [f"{annualized_returns:,.2%}" ],
+                            "Annualized Volatility": [f"{portfolio_info.volatility:,.2%}" if portfolio_info.volatility is not None else "NA"],
+                            "Sharpe Ratio": [f"{portfolio_info.sharpe_ratio:,.2f}" if portfolio_info.sharpe_ratio is not None else "NA"],
                            }).transpose().reset_index().rename(columns={"index": "Metric", 0: "Value"})
-        table_html = df.to_html(index=False).replace('<table border="1" class="dataframe">',
-                                                           '<table class="table">')
+        table_html = df.to_html(index=False).replace('<table border="1" class="dataframe">', '<table class="table table-hover">')
         table_html = table_html.replace("text-align: right;", "text-align: left;")
         table_html = table_html.replace('<thead>', '<thead class="thead-dark">')
-        print(table_html)
+        # print(table_html)
         return table_html
+
 
 def create_portfolio_summary(portfolios):
     portfolios_list = portfolios.all()
 
-    names, time_horizons, investments, returns, curr_values = [], [], [], [], []
+    names, time_horizons, investments, returns, curr_values, annualized_returns, annualized_vol, risk_appetites, sharpe_ratios = [], [], [], [], [], [], [], [], []
     for portfolio in portfolios_list:
         names += [portfolio.name]
         time_horizons += [int(portfolio.time_horizon)]
-        investments += ['$' + str(portfolio.cash)]
+        investments += [f"${(portfolio.cash):,.2f}"]
         returns += [f"{portfolio.returns:,.2%}" if portfolio.returns is not None else "NA"]
         curr_values += [f"${((1 + portfolio.returns) * portfolio.cash):,.2f}" if portfolio.returns is not None else "NA"]
+        annualized_returns += [f"{((portfolio.returns + 1) ** (1 / portfolio.time_horizon) - 1):,.2%}" if portfolio.returns is not None else "NA"]
+        annualized_vol += [f"{(portfolio.volatility):,.2%}" if portfolio.volatility is not None else "NA"]
+        risk_appetites += [portfolio.risk_appetite if portfolio.risk_appetite is not None else "NA"]
+        sharpe_ratios += [round(portfolio.sharpe_ratio, 2) if portfolio.sharpe_ratio is not None else "NA"]
 
-    summary_df = pd.DataFrame({"Portfolio Name": names, "Time Horizon (Years)": time_horizons,
+    summary_df = pd.DataFrame({"Portfolio Name": names,
+                               "Time Horizon (Years)": time_horizons,
+                               "Risk Appetite": risk_appetites,
                                "Initial Investment Amount": investments,
                                "Current Portfolio Value": curr_values,
-                               "Return": returns
+                               "Total Return": returns,
+                               "Annualized Return": annualized_returns,
+                               "Annualized Volatility": annualized_vol,
+                               "Sharpe Ratio": sharpe_ratios
                                })
+
     summary_html = summary_df.to_html(index=False).replace('<table border="1" class="dataframe">',
-                                                           '<table class="table">')
+                                                           '<table class="table table-hover">')
     summary_html = summary_html.replace("text-align: right;", "text-align: left;")
     summary_html = summary_html.replace('<thead>', '<thead class="thead-dark">')
 
-    print(summary_html)
+    # print(summary_html)
     return summary_html
