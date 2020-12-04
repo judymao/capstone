@@ -57,8 +57,8 @@ class RiskForm(FlaskForm):
     unknownOutcomes = RadioField("The anticipation of events with an unknown outcome:",
                                    choices=unknown_options, validators=[DataRequired()])
 
-    job_options = [(0, "A guaranteed loss of $50"), (1, '50% chance of losing $100, 50% chance of losing $0'),
-                         (2, '1% chance of losing $5000, 99% chance of losing $0')]
+    job_options = [(0, "A stable, mediocre-paying job"), (1, 'A job that pays decently but with a small chance of layoff'),
+                         (2, 'A job with a high salary but a lot of turnover')]
     job = RadioField("Which of the following would you rather have?",
                                        choices=job_options, validators=[DataRequired()])
 
